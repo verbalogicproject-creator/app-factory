@@ -1,0 +1,32 @@
+{
+  "description": "appfactory-core guards. Each converts a documented, repeated failure from this pipeline's history into a structural impossibility rather than a sentence in a document.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/guard_run_list.py\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/guard_push_preflight.py\"",
+            "timeout": 200
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/guard_secret_material.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
