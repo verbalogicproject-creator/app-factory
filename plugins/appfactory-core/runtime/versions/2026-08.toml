@@ -1,0 +1,70 @@
+# Known-good version matrix, 2026-08.
+#
+# DATED ON PURPOSE. AGP, Gradle, Kotlin, KSP and Compose form a tight compatibility
+# lattice, and the GitHub runner images move underneath all of them. A project
+# generated six months ago will not build against today's matrix, so several dated
+# matrices ship and an old project can pin an old one and still build.
+#
+# SOURCED FROM THE OFFICIAL RELEASE NOTES, not from "what compiled last time".
+# https://developer.android.com/build/releases/past-releases/agp-8-3-0-release-notes
+#
+#   AGP 8.3   requires Gradle 8.4+          (this pins 8.7)
+#   AGP 8.3   requires JDK 17               (this pins 17)
+#   AGP 8.3   supports compileSdk up to 34  (this pins 34)
+#
+# KSP is pinned to an EXACT Kotlin version: "2.0.0-1.0.21" means KSP 1.0.21 built
+# for Kotlin 2.0.0, and it refuses to load against any other Kotlin. Bumping Kotlin
+# without bumping KSP in lockstep is the single most common way this lattice breaks.
+#
+# Nothing here is a range or a `+`. An unpinned version turns a green build into a
+# time bomb that detonates on someone else's machine, months later.
+#
+# VERIFIED: this exact set produced signed, installed, launching releases v0.0.1 and
+# v0.0.2 of appfactory-conformance on 2026-08-15, and passed instrumented tests on
+# API 28 and API 34.
+
+[toolchain]
+agp = "8.3.1"
+kotlin = "2.0.0"
+ksp = "2.0.0-1.0.21"          # must track `kotlin` exactly
+gradle = "8.7"                # AGP 8.3 floor is 8.4
+jdk = "17"                    # AGP 8.3 floor is 17
+
+[sdk]
+compileSdk = 34               # AGP 8.3 ceiling is 34
+targetSdk = 34
+minSdk = 28                   # adaptive icons need 26; 28 avoids PNG fallbacks entirely
+
+[androidx]
+coreKtx = "1.13.0"
+lifecycle = "2.7.0"
+activityCompose = "1.9.0"
+composeBom = "2024.04.01"
+navigationCompose = "2.7.7"
+
+[di]
+hilt = "2.51.1"
+hiltNavigationCompose = "1.2.0"
+
+[data]
+room = "2.6.1"
+serialization = "1.6.3"
+
+[test]
+junit = "4.13.2"
+androidxJunit = "1.1.5"
+espresso = "3.5.1"
+androidxTestRunner = "1.5.2"
+
+[emulator]
+# minSdk and targetSdk are the two levels that are contractual promises; everything
+# between them is interpolation.
+apiLevels = [28, 34]
+arch = "x86_64"
+target = "default"            # not google_apis -- smaller image, boots faster
+
+[notes]
+# Known gap: a physical device may run an API level above targetSdk (an Android 15
+# device against targetSdk 34, for instance). Targeting lower exempts you from that
+# release's behaviour changes, but "exempt by targeting lower" is a fact to state,
+# not to assume. The physical-device rung is where that coverage actually comes from.
