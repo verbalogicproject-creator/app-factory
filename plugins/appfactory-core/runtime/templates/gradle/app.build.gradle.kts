@@ -2,7 +2,8 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
+    // NO alias(libs.plugins.kotlin.android) -- AGP 9 provides Kotlin support
+    // itself and applying the plugin separately is an error.
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
@@ -36,14 +37,14 @@ val hasReleaseSigning = releaseStoreFile != null && rootProject.file(releaseStor
 
 android {
     namespace = "{{APPLICATION_ID}}"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "{{APPLICATION_ID}}"
         // Android 9. Adaptive icons need 26, so mipmap-anydpi-v26 covers every
         // supported device with no PNG fallbacks required.
-        minSdk = 28
-        targetSdk = 34
+        minSdk = {{MIN_SDK}}
+        targetSdk = {{TARGET_SDK}}
 
         // release.yml derives these from the git tag and passes them as
         // ORG_GRADLE_PROJECT_versionCode / _versionName. The literals are the
@@ -131,7 +132,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
 
     buildFeatures {
         compose = true
@@ -140,6 +140,15 @@ android {
 
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+    }
+
+    // ci.yml and release.yml both run `./gradlew ... lint`. AGP 9 ships new checks and
+    // a fresh NewApi baseline against API 36, so an unconfigured lint can fail a build
+    // on a rule nobody adopted -- and the reflex under deadline is to switch lint off.
+    lint {
+        abortOnError = true
+        warningsAsErrors = false
+        checkDependencies = false
     }
 
     // MigrationTestHelper reads the exported schemas at RUNTIME, from the test APK's
@@ -157,6 +166,14 @@ android {
         getByName("androidTest") {
             assets.srcDirs(files("$projectDir/schemas"))
         }
+    }
+}
+
+// Replaces `android { kotlinOptions { jvmTarget = "17" } }`, which AGP 9 removed.
+// KGP-native form, and it is an ASSIGNMENT rather than .set().
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 

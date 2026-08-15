@@ -1,79 +1,95 @@
-# Known-good version lattice, validated 2026-08-15.
+# Known-good version lattice for compileSdk 36. Validated 2026-08-15.
 #
-# WHY THIS EXISTS SEPARATELY FROM 2026-08.toml
+# PROVENANCE: adopted wholesale from android/nowinandroid, which is maintained by
+# Google, actively built, and uses this exact stack -- Compose, Hilt, KSP, Room. Then
+# confirmed here by compiling a real app against it.
 #
-# From 31 August 2026, new apps AND app updates must target Android 16 (API 36) to be
-# submitted to Google Play. The previous matrix pins AGP 8.3.1 / compileSdk 34, whose
-# ceiling is API 34 -- so every app generated on it is born non-compliant.
+# THAT PROVENANCE IS THE POINT, and it was learned the expensive way.
 #
-# The old matrix is kept rather than edited. A project already shipping on it can stay
-# there deliberately; what it cannot do is be surprised into it.
+# The first attempt at this file derived a lattice by querying Maven metadata artifact
+# by artifact and taking the newest of each. Three CI round trips followed, each
+# discovering one more incompatibility:
 #
+#   Hilt 2.60.1        "only compatible with AGP 9.0.0 or higher"
+#   kotlinOptions      removed; migrate to the compilerOptions DSL
+#   kotlin 2.3.21      paired with KSP 2.3.11, which embeds stdlib 2.3.20
+#
+# Every individual version was defensible. The combination had never been built. That
+# is the same failure class as a fabricated font certificate, one layer up the stack:
+# plausible, correctly shaped, wrong -- and it is exactly what the S6 rule already
+# forbids. A version lattice HAS a canonical upstream: a project that compiles.
+#
+# Corollary worth keeping: the binding constraint is usually the OLDEST component you
+# are forced to keep, not the newest you want. Choosing AGP 8.13 to "stay safe" created
+# the Hilt problem; moving to AGP 9 dissolved it.
+#
+# WHY THIS FILE IS SEPARATE FROM 2026-08.toml
+# From 31 August 2026, new apps and app updates must target Android 16 (API 36) to be
+# submitted to Google Play. 2026-08.toml pins AGP 8.3.1 / compileSdk 34, whose ceiling
+# is API 34, so every app generated on it is born unsubmittable. The old file is kept
+# rather than edited: a project already shipping on it can stay there deliberately.
 #   https://developer.android.com/google/play/requirements/target-sdk
-#
-# EVERY VERSION HERE WAS RESOLVED FROM THE PUBLISHING REPOSITORY, not from memory.
-# The whole reason this file exists is that a plausible-looking version number is the
-# cheapest possible way to burn a CI round trip, and a lattice has many of them.
-#
-# ── WHY AGP 8.13 AND NOT 9.x ────────────────────────────────────────────────
-# AGP is at 9.3.0 (July 2026). 8.13.2 is chosen deliberately: its ceiling is API 36.1,
-# which clears the requirement, while avoiding AGP 9's breaking changes --
-#
-#   org.jetbrains.kotlin.android must be REMOVED (Kotlin support is built in)
-#   the android {} DSL moves to new public interfaces
-#   apps compile against a NON-FINAL R class
-#
-# None of those are hard for a single-module Compose app, but each is an unknown, and
-# unknowns cost 2-5 minutes each on a device where CI is the only compiler. 8.13 is the
-# smallest change that clears the deadline. Moving to 9.x is a separate, schedulable
-# pipeline change with its own proof.
-# ────────────────────────────────────────────────────────────────────────────
 
-agp = "8.13.2"                # ceiling is API 36.1; Gradle floor 8.13, JDK floor 17
-kotlin = "2.3.21"             # AGP 8.13.2 ships R8 8.13.19, which supports Kotlin 2.3
-ksp = "2.3.11"
+agp = "9.0.0"
+kotlin = "2.3.0"
+ksp = "2.3.4"
 
-# NOTE: KSP CHANGED ITS VERSIONING SCHEME, and the old matrix's comment is now wrong.
-# It used to publish as <kotlin>-<ksp>, e.g. "2.0.0-1.0.21", so it had to track Kotlin
-# exactly. It now publishes plain semver. Do not try to construct a KSP version from a
-# Kotlin version; look it up.
+# KSP CHANGED ITS VERSIONING SCHEME. It used to publish as <kotlin>-<ksp>
+# ("2.0.0-1.0.21") and had to track Kotlin exactly; it now publishes plain semver. A KSP
+# version can no longer be DERIVED from a Kotlin version -- look it up, or take a pair
+# that is known to work together. Getting this wrong is silent until KSP runs.
 
-gradle = "8.14.5"             # AGP 8.13 floor is 8.13; this is the latest stable 8.x
-jdk = "17"                    # unchanged -- AGP 9.3 still floors at 17, so CI is fine
-buildTools = "35.0.0"         # AGP 8.13 default
+gradle = "9.4.0"              # AGP 9.0 floor is 9.1.0
+jdk = "17"                    # unchanged from the 8.3 matrix; AGP 9 still floors at 17
 
-compileSdk = 36               # THE POINT OF THIS FILE
+compileSdk = 36               # the point of this file
 targetSdk = 36
 minSdk = 28                   # adaptive icons need 26; 28 avoids PNG fallbacks entirely
 
-# The Compose compiler is a Kotlin plugin from 2.0 onward and is versioned WITH Kotlin,
-# so there is no separate composeCompiler pin to drift.
-composeBom = "2026.08.00"
+# The Compose compiler is a Kotlin plugin from 2.0 onward, versioned WITH Kotlin, so
+# there is no separate composeCompiler pin to drift.
+#
+# Note this BOM is NOT the newest published (2026.08.00 exists). It is the one
+# nowinandroid builds against. Newest is not the same as right, and preferring newest
+# per-artifact is what produced the untested combination above.
+composeBom = "2025.09.01"
 
-coreKtx = "1.19.0"
-lifecycle = "2.11.0"
-activityCompose = "1.13.0"
-hilt = "2.60.1"
-hiltNavigationCompose = "1.4.0"
-room = "2.8.4"
-serialization = "1.11.0"
-ktor = "3.5.2"
+coreKtx = "1.15.0"
+lifecycle = "2.10.0"
+activityCompose = "1.9.3"
+hilt = "2.59"
+hiltNavigationCompose = "1.2.0"
+room = "2.8.3"
+serialization = "1.8.0"
+ktor = "2.3.11"               # not in nowinandroid; unchanged because nothing forces it
 
 junit = "4.13.2"
 androidxJunit = "1.3.0"
-espresso = "3.7.0"
+espresso = "3.6.1"
 testRunner = "1.7.0"
 
-# ── WHAT MUST BE PROVEN BEFORE THIS MATRIX IS TRUSTED ───────────────────────
-# A dependency update is a VERSIONED PIPELINE CHANGE, not routine maintenance, and
-# ships with the same evidence as any other change to the pipeline:
+# ── AGP 9 BREAKING CHANGES A GENERATED APP MUST ALREADY HANDLE ──────────────
+# All three verified against nowinandroid rather than assumed, and all three are
+# already applied in templates/gradle/:
 #
-#   negative-fixture proof   every preflight fixture still DETECTS its bug. A version
-#                            bump that quietly breaks a check leaves the corpus looking
-#                            green while covering nothing.
-#   generated-app proof      scaffold a fresh app on this matrix and drive it to a
-#                            signed APK. Compiling one existing app proves the app
-#                            still builds, not that the pipeline still generates.
+#   1. `org.jetbrains.kotlin.android` must NOT be applied. AGP 9 provides Kotlin
+#      support itself. kotlin.plugin.compose / .serialization / ksp / hilt all remain.
+#   2. `android { kotlinOptions { } }` is gone. Use a top-level
+#      `kotlin { compilerOptions { jvmTarget = JvmTarget.JVM_17 } }` -- an ASSIGNMENT,
+#      not .set().
+#   3. Apps compile against a NON-FINAL R class, so `when (id) { R.id.x -> }` constant
+#      switches break. Use if/else.
 #
-# Until both are recorded, this file is a CANDIDATE.
+# ── WHAT WAS PROVEN BEFORE THIS FILE STOPPED BEING A CANDIDATE ──────────────
+# A dependency update is a VERSIONED PIPELINE CHANGE, not routine maintenance:
+#
+#   compile + unit tests + R8    green on a real app
+#   androidTest COMPILES         ci.yml now runs assembleDebugAndroidTest, because
+#                                push-CI never touched androidTest before and Room's
+#                                MigrationTestHelper constructor changed shape in 2.7
+#   Room identityHash stable     v1/v2/v3 unchanged across Room 2.6.1 -> 2.8.3 and
+#                                KSP 2.0 -> 2.3.4, so installed copies still open
+#   negative-fixture proof       selftest.sh green: every check still DETECTS its bug
+#   generated-app proof          a fresh app scaffolded on this matrix reaches a
+#                                signed APK
 # ────────────────────────────────────────────────────────────────────────────

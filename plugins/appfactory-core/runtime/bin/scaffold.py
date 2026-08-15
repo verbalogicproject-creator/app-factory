@@ -78,7 +78,7 @@ def main() -> int:
     ap.add_argument("--application-id", required=True)
     ap.add_argument("--app-name", required=True)
     ap.add_argument("--min-sdk", type=int, default=28)
-    ap.add_argument("--target-sdk", type=int, default=34)
+    ap.add_argument("--target-sdk", type=int, default=36)
     ap.add_argument("--force", action="store_true")
     args = ap.parse_args()
 
@@ -119,6 +119,11 @@ def main() -> int:
         "proguard-rules.pro": "app/proguard-rules.pro",
         "proguard-test-rules.pro": "app/proguard-test-rules.pro",
         "gitignore": ".gitignore",
+        # The wrapper pins the Gradle version, and AGP has a hard floor on it. Without
+        # this the generated app has no wrapper properties at all while every workflow
+        # it ships calls ./gradlew -- so the Gradle version was decided by whatever the
+        # environment happened to have. Found by auditing rather than by a failure.
+        "gradle-wrapper.properties": "gradle/wrapper/gradle-wrapper.properties",
     }
     for src_name, dst_rel in mapping.items():
         src = os.path.join(gradle, src_name)
