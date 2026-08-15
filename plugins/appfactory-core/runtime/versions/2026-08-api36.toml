@@ -1,0 +1,79 @@
+# Known-good version lattice, validated 2026-08-15.
+#
+# WHY THIS EXISTS SEPARATELY FROM 2026-08.toml
+#
+# From 31 August 2026, new apps AND app updates must target Android 16 (API 36) to be
+# submitted to Google Play. The previous matrix pins AGP 8.3.1 / compileSdk 34, whose
+# ceiling is API 34 -- so every app generated on it is born non-compliant.
+#
+# The old matrix is kept rather than edited. A project already shipping on it can stay
+# there deliberately; what it cannot do is be surprised into it.
+#
+#   https://developer.android.com/google/play/requirements/target-sdk
+#
+# EVERY VERSION HERE WAS RESOLVED FROM THE PUBLISHING REPOSITORY, not from memory.
+# The whole reason this file exists is that a plausible-looking version number is the
+# cheapest possible way to burn a CI round trip, and a lattice has many of them.
+#
+# ── WHY AGP 8.13 AND NOT 9.x ────────────────────────────────────────────────
+# AGP is at 9.3.0 (July 2026). 8.13.2 is chosen deliberately: its ceiling is API 36.1,
+# which clears the requirement, while avoiding AGP 9's breaking changes --
+#
+#   org.jetbrains.kotlin.android must be REMOVED (Kotlin support is built in)
+#   the android {} DSL moves to new public interfaces
+#   apps compile against a NON-FINAL R class
+#
+# None of those are hard for a single-module Compose app, but each is an unknown, and
+# unknowns cost 2-5 minutes each on a device where CI is the only compiler. 8.13 is the
+# smallest change that clears the deadline. Moving to 9.x is a separate, schedulable
+# pipeline change with its own proof.
+# ────────────────────────────────────────────────────────────────────────────
+
+agp = "8.13.2"                # ceiling is API 36.1; Gradle floor 8.13, JDK floor 17
+kotlin = "2.3.21"             # AGP 8.13.2 ships R8 8.13.19, which supports Kotlin 2.3
+ksp = "2.3.11"
+
+# NOTE: KSP CHANGED ITS VERSIONING SCHEME, and the old matrix's comment is now wrong.
+# It used to publish as <kotlin>-<ksp>, e.g. "2.0.0-1.0.21", so it had to track Kotlin
+# exactly. It now publishes plain semver. Do not try to construct a KSP version from a
+# Kotlin version; look it up.
+
+gradle = "8.14.5"             # AGP 8.13 floor is 8.13; this is the latest stable 8.x
+jdk = "17"                    # unchanged -- AGP 9.3 still floors at 17, so CI is fine
+buildTools = "35.0.0"         # AGP 8.13 default
+
+compileSdk = 36               # THE POINT OF THIS FILE
+targetSdk = 36
+minSdk = 28                   # adaptive icons need 26; 28 avoids PNG fallbacks entirely
+
+# The Compose compiler is a Kotlin plugin from 2.0 onward and is versioned WITH Kotlin,
+# so there is no separate composeCompiler pin to drift.
+composeBom = "2026.08.00"
+
+coreKtx = "1.19.0"
+lifecycle = "2.11.0"
+activityCompose = "1.13.0"
+hilt = "2.60.1"
+hiltNavigationCompose = "1.4.0"
+room = "2.8.4"
+serialization = "1.11.0"
+ktor = "3.5.2"
+
+junit = "4.13.2"
+androidxJunit = "1.3.0"
+espresso = "3.7.0"
+testRunner = "1.7.0"
+
+# ── WHAT MUST BE PROVEN BEFORE THIS MATRIX IS TRUSTED ───────────────────────
+# A dependency update is a VERSIONED PIPELINE CHANGE, not routine maintenance, and
+# ships with the same evidence as any other change to the pipeline:
+#
+#   negative-fixture proof   every preflight fixture still DETECTS its bug. A version
+#                            bump that quietly breaks a check leaves the corpus looking
+#                            green while covering nothing.
+#   generated-app proof      scaffold a fresh app on this matrix and drive it to a
+#                            signed APK. Compiling one existing app proves the app
+#                            still builds, not that the pipeline still generates.
+#
+# Until both are recorded, this file is a CANDIDATE.
+# ────────────────────────────────────────────────────────────────────────────
