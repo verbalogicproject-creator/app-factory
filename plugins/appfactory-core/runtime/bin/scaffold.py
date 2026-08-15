@@ -62,14 +62,41 @@ def render(text: str, subs: dict[str, str]) -> str:
     return text
 
 
+# Copied byte-for-byte, never rendered, because for these the BYTES are the artifact
+# and none of them contains a placeholder.
+#
+# Detecting them by catching UnicodeDecodeError is not enough, in both directions:
+#
+#   gradle-wrapper.jar   a binary that happened to decode as UTF-8 would be pushed
+#                        through render() and silently corrupted, and a corrupt
+#                        wrapper jar fails as a class-not-found error naming nothing
+#   gradlew.bat          decodes fine, and that is the problem. Python's text mode
+#                        normalises its CRLF line endings to LF on the way through,
+#                        and cmd.exe mis-parses goto/labels in an LF-only batch file.
+#                        Measured: 2918 bytes in, 2826 bytes out.
+VERBATIM = {"gradle-wrapper.jar", "gradlew", "gradlew.bat"}
+
+# Files the runner executes directly. open(dst, "w") creates mode 644, git records
+# the mode, and the runner then says "Permission denied" on the first build line.
+# shutil.copy2 already carries the template's mode; this is the belt to that braces,
+# because a template whose own +x was lost would reintroduce the bug invisibly.
+EXECUTABLE = {"gradlew"}
+
+
 def copy_rendered(src: str, dst: str, subs: dict[str, str]) -> None:
     os.makedirs(os.path.dirname(dst), exist_ok=True)
-    try:
-        body = open(src, encoding="utf-8").read()
-    except UnicodeDecodeError:
-        shutil.copy2(src, dst)  # binary (the gradle wrapper jar)
-        return
-    open(dst, "w", encoding="utf-8").write(render(body, subs))
+    name = os.path.basename(src)
+    if name in VERBATIM:
+        shutil.copy2(src, dst)
+    else:
+        try:
+            body = open(src, encoding="utf-8").read()
+        except UnicodeDecodeError:
+            shutil.copy2(src, dst)
+        else:
+            open(dst, "w", encoding="utf-8").write(render(body, subs))
+    if name in EXECUTABLE:
+        os.chmod(dst, 0o755)
 
 
 def main() -> int:
@@ -119,10 +146,22 @@ def main() -> int:
         "proguard-rules.pro": "app/proguard-rules.pro",
         "proguard-test-rules.pro": "app/proguard-test-rules.pro",
         "gitignore": ".gitignore",
-        # The wrapper pins the Gradle version, and AGP has a hard floor on it. Without
-        # this the generated app has no wrapper properties at all while every workflow
-        # it ships calls ./gradlew -- so the Gradle version was decided by whatever the
-        # environment happened to have. Found by auditing rather than by a failure.
+        # THE GRADLE WRAPPER IS FOUR FILES, AND ALL FOUR MUST BE COMMITTED.
+        #
+        # The wrapper pins the Gradle version, and AGP has a hard floor on it. An
+        # earlier version of this list shipped only the .properties file, so every
+        # generated app declared a Gradle version it had no way to launch: all three
+        # of its workflows call ./gradlew, and the very first line of the very first
+        # build died with "./gradlew: No such file or directory".
+        #
+        # It passed the entire preflight corpus on the way out, because a green local
+        # run says nothing about a file only the runner ever executes. Check 100 now
+        # reads ./-invocations out of workflow run: blocks specifically so this cannot
+        # ship again -- including the two quieter variants, a gradlew that is present
+        # but mode 644, and a gradlew with no jar beside it.
+        "gradlew": "gradlew",
+        "gradlew.bat": "gradlew.bat",
+        "gradle-wrapper.jar": "gradle/wrapper/gradle-wrapper.jar",
         "gradle-wrapper.properties": "gradle/wrapper/gradle-wrapper.properties",
     }
     for src_name, dst_rel in mapping.items():
