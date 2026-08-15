@@ -28,9 +28,24 @@ done < <(perl -ne '
     print "$1\n" if /^\s*([A-Za-z0-9_.-]+)\s*=/;
 ' "$CATALOG")
 
+# Exclude build/ (generated) AND the vendored check corpus's own fixtures.
+#
+# Without the second exclusion this finds fixtures/010-catalog-aliases/bug/, which
+# contains a deliberately-missing alias, and every freshly scaffolded app opens with
+# a false failure. Found by running preflight against a generated app rather than by
+# reading the code: the corpus must not scan itself.
+#
+# The exclusion is anchored to "$ROOT/scripts/preflight/fixtures", NOT to any path
+# matching /preflight/fixtures/. The first attempt used the substring and broke the
+# selftest, which points the check AT a fixture directory — the exclusion then
+# swallowed the very file under test and the check reported clean. The selftest
+# caught that within seconds, which is the entire reason it exists.
+EXCLUDE_DIR="$ROOT/scripts/preflight/fixtures"
 BUILD_FILES=()
 while IFS= read -r f; do BUILD_FILES+=("$f"); done < <(
-    find "$ROOT" -name "build.gradle.kts" -o -name "build.gradle" 2>/dev/null | grep -v '/build/'
+    find "$ROOT" \( -name "build.gradle.kts" -o -name "build.gradle" \) 2>/dev/null \
+        | grep -v '/build/' \
+        | grep -Fv "$EXCLUDE_DIR/"
 )
 [ ${#BUILD_FILES[@]} -gt 0 ] || { pass "$TITLE (no build files)"; af_exit; }
 
