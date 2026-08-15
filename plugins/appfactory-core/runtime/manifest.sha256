@@ -15,6 +15,7 @@ d435cdf9b8c84310cf1e547e660fc33181c72032a6ea6b4e5d63ff754a6ab675  ./scripts/pref
 ee95283a1d8645479d6f63eafcc6395c9a6b7499944e12afe6ba7269fd947e24  ./scripts/preflight/checks/090-db-version-has-schema.sh
 48d14afa882f94cbaa0c48d5d7acfde45609a31fd479ce97df1139bec39e637a  ./scripts/preflight/checks/100-workflow-scripts-exist.sh
 3f942b844dbcf2e6c129717f7b14a813880486254861f94bdcf8a66ebc5766f6  ./scripts/preflight/checks/110-no-unsubstituted-placeholders.sh
+6548983998da48d2d6ff98ee65b156d07ff131b348b742dd7a56f95fc43ccb96  ./scripts/preflight/checks/120-network-manifest.sh
 feb1e2be9d91101c7b3d9a4b1f5bab9c69b44aba60cf60dc929370096faf2864  ./scripts/preflight/fixtures/010-catalog-aliases/README.md
 a15c5278cc9042ab575e61ae3b6b3905a1cd4adcb8f38a3f65350f01122b84df  ./scripts/preflight/fixtures/010-catalog-aliases/bug/app/build.gradle.kts
 10c6a00affc2da1d5b7d6bc17d1de7a00564f43b7be896a9d194e27c23416ccf  ./scripts/preflight/fixtures/010-catalog-aliases/bug/gradle/libs.versions.toml
@@ -91,6 +92,15 @@ d682cbdb4c8b07518bf486c58990fc391783aa20a916bfb27ad211eb1d5c3642  ./scripts/pref
 9cf4fbd5204c71692ecaeba42e061a21dcb118a75154999c1b198ed6aaf77e28  ./scripts/preflight/fixtures/110-no-unsubstituted-placeholders/bug/scripts/emulator-verify.sh
 72808c858fbf7fa584a50cfaa91f2c0ac0a5be11ef6db7712ce6fa4468b84291  ./scripts/preflight/fixtures/110-no-unsubstituted-placeholders/fixed/.github/workflows/ci.yml
 31604e6b4ad4a4c4254c63493cd0faba2a8f4bd4ab3a32a320e5768a661704b0  ./scripts/preflight/fixtures/110-no-unsubstituted-placeholders/fixed/scripts/emulator-verify.sh
+78c0acbe98f2b89767abfc431440584999e56ef3e63dc8fd8b5c6e93cccac84c  ./scripts/preflight/fixtures/120-network-manifest/README.md
+eeba9a0431cae4299736a1a0748854d004781769256ab4d41100d427b9078ec1  ./scripts/preflight/fixtures/120-network-manifest/bug-config-unwired/app/src/main/AndroidManifest.xml
+5e85207d4a884da88d737eb26821985b81f3c4c2a515867cd9a219d25221f77f  ./scripts/preflight/fixtures/120-network-manifest/bug-config-unwired/app/src/main/java/com/example/demo/Client.kt
+63bc11c6259f20ba625aff320bbe684ad0e237fb12e1a84a0d0c58e716124b0c  ./scripts/preflight/fixtures/120-network-manifest/bug-config-unwired/app/src/main/res/xml/network_security_config.xml
+f74e8ba0846da15f871174b92604e7a1073e5e43f20e564acad90d66939d2870  ./scripts/preflight/fixtures/120-network-manifest/bug/app/src/main/AndroidManifest.xml
+5e85207d4a884da88d737eb26821985b81f3c4c2a515867cd9a219d25221f77f  ./scripts/preflight/fixtures/120-network-manifest/bug/app/src/main/java/com/example/demo/Client.kt
+06afd057b5531acc444b95be684fffdb4a2026f7bfcbf5509969e10ac282e67c  ./scripts/preflight/fixtures/120-network-manifest/fixed/app/src/main/AndroidManifest.xml
+5e85207d4a884da88d737eb26821985b81f3c4c2a515867cd9a219d25221f77f  ./scripts/preflight/fixtures/120-network-manifest/fixed/app/src/main/java/com/example/demo/Client.kt
+63bc11c6259f20ba625aff320bbe684ad0e237fb12e1a84a0d0c58e716124b0c  ./scripts/preflight/fixtures/120-network-manifest/fixed/app/src/main/res/xml/network_security_config.xml
 3fc716f1680dbaf830b912b95c2f6007216cc5321caffdef9434780fa5fba5d4  ./scripts/preflight/lib.sh
 56449e7dc9105cae81c2221053e2c37343bc4905d3d3021a6e85b06031aa8072  ./scripts/preflight/selftest.sh
 bb9e29dedfc4f5f74b75cff137cfc72589b5777ed6f6b4a77600f55824b5806d  ./templates/app/src/androidTest/java/LaunchTest.kt
