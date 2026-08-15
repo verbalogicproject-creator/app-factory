@@ -1,6 +1,6 @@
 479bee164c2c2c7e2de3a5749c5be95e583cef34c75f8c999deaeb508620e6a0  ./bin/apk_cert.py
 6e00fa5e15c43e2b36947c9a29c806df2a77f4fc64bf5a91566779a9066ed488  ./bin/pass_manager.py
-9b7f4f3d1e8af20a9e046771aad218eae684cfcf997cbc8fdba0038c525efc6c  ./bin/scaffold.py
+fd0e1379dc5002dbe372bd16da908a23a98989cbc96d619fbefa2e3ce51b2856  ./bin/scaffold.py
 f931e493d285a6fe4d54aa9074616e02dc425057dcdf10405c9da49664760bc0  ./bin/verify_mapping.py
 3f27861a2b28f284849a3069fc39bd7d3b87d7a44360f066e771e1c04e4ccfb1  ./scripts/emulator-verify.sh
 1c91ae5fc5b3e5229544dc1b2a510f18ed15d03025e21d055da7f1920b1e719b  ./scripts/preflight.sh
@@ -14,6 +14,7 @@ dff162154c9a12e3b4b4b0bda3cdd9f39cc56fedb677aecfbb0d26db42b442ed  ./scripts/pref
 d435cdf9b8c84310cf1e547e660fc33181c72032a6ea6b4e5d63ff754a6ab675  ./scripts/preflight/checks/080-workflow-yaml-parses.sh
 ee95283a1d8645479d6f63eafcc6395c9a6b7499944e12afe6ba7269fd947e24  ./scripts/preflight/checks/090-db-version-has-schema.sh
 48d14afa882f94cbaa0c48d5d7acfde45609a31fd479ce97df1139bec39e637a  ./scripts/preflight/checks/100-workflow-scripts-exist.sh
+3f942b844dbcf2e6c129717f7b14a813880486254861f94bdcf8a66ebc5766f6  ./scripts/preflight/checks/110-no-unsubstituted-placeholders.sh
 feb1e2be9d91101c7b3d9a4b1f5bab9c69b44aba60cf60dc929370096faf2864  ./scripts/preflight/fixtures/010-catalog-aliases/README.md
 a15c5278cc9042ab575e61ae3b6b3905a1cd4adcb8f38a3f65350f01122b84df  ./scripts/preflight/fixtures/010-catalog-aliases/bug/app/build.gradle.kts
 10c6a00affc2da1d5b7d6bc17d1de7a00564f43b7be896a9d194e27c23416ccf  ./scripts/preflight/fixtures/010-catalog-aliases/bug/gradle/libs.versions.toml
@@ -85,6 +86,11 @@ f67045de60591a3862d910af2c463089f77bb04e6b75b0d9b6720bd2e8cf944f  ./scripts/pref
 963485f0f3f4b59aa672e307110a05187d0360813e25c12172503cd22ac61289  ./scripts/preflight/fixtures/100-workflow-scripts-exist/fixed/.github/workflows/ci.yml
 1d95fc04a80c952f49ce4188627c53b0fbe8c44041b952d592acd1de99861466  ./scripts/preflight/fixtures/100-workflow-scripts-exist/fixed/scripts/preflight.sh
 d682cbdb4c8b07518bf486c58990fc391783aa20a916bfb27ad211eb1d5c3642  ./scripts/preflight/fixtures/100-workflow-scripts-exist/fixed/scripts/verify_mapping.py
+2afe5e7f7d4737542ed1697248a25e8762fb00d0cc55fe52850431e0aa28a8b9  ./scripts/preflight/fixtures/110-no-unsubstituted-placeholders/README.md
+72808c858fbf7fa584a50cfaa91f2c0ac0a5be11ef6db7712ce6fa4468b84291  ./scripts/preflight/fixtures/110-no-unsubstituted-placeholders/bug/.github/workflows/ci.yml
+9cf4fbd5204c71692ecaeba42e061a21dcb118a75154999c1b198ed6aaf77e28  ./scripts/preflight/fixtures/110-no-unsubstituted-placeholders/bug/scripts/emulator-verify.sh
+72808c858fbf7fa584a50cfaa91f2c0ac0a5be11ef6db7712ce6fa4468b84291  ./scripts/preflight/fixtures/110-no-unsubstituted-placeholders/fixed/.github/workflows/ci.yml
+31604e6b4ad4a4c4254c63493cd0faba2a8f4bd4ab3a32a320e5768a661704b0  ./scripts/preflight/fixtures/110-no-unsubstituted-placeholders/fixed/scripts/emulator-verify.sh
 3fc716f1680dbaf830b912b95c2f6007216cc5321caffdef9434780fa5fba5d4  ./scripts/preflight/lib.sh
 56449e7dc9105cae81c2221053e2c37343bc4905d3d3021a6e85b06031aa8072  ./scripts/preflight/selftest.sh
 bb9e29dedfc4f5f74b75cff137cfc72589b5777ed6f6b4a77600f55824b5806d  ./templates/app/src/androidTest/java/LaunchTest.kt

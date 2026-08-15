@@ -143,11 +143,32 @@ def main() -> int:
     ok(f"app sources ({count})")
 
     # --- vendored runtime --------------------------------------------------
+    #
+    # scripts/ must be RENDERED, not copied. emulator-verify.sh contains
+    # {{APPLICATION_ID}}, and copying it verbatim produced
+    #     Error: Activity class {{{APPLICATION_ID}}/...MainActivity} does not exist
+    # on the emulator — the launch smoke caught it honestly, but only after a
+    # 10-minute run, and only because that rung exists at all.
+    #
+    # The fixture trees under scripts/preflight/fixtures/ are copied verbatim on
+    # purpose: they are deliberately-broken sample projects, and rendering them
+    # would corrupt the very bugs they encode.
     for sub_dir, dst in (("scripts", "scripts"), ("bin", ".appfactory/bin")):
-        s = os.path.join(RUNTIME, sub_dir)
-        d = os.path.join(target, dst)
-        if os.path.isdir(s):
-            shutil.copytree(s, d, dirs_exist_ok=True)
+        src_root = os.path.join(RUNTIME, sub_dir)
+        if not os.path.isdir(src_root):
+            continue
+        for root, _, files in os.walk(src_root):
+            for f in files:
+                s = os.path.join(root, f)
+                rel = os.path.relpath(s, src_root)
+                d = os.path.join(target, dst, rel)
+                if "preflight/fixtures/" in rel.replace(os.sep, "/"):
+                    os.makedirs(os.path.dirname(d), exist_ok=True)
+                    shutil.copy2(s, d)
+                else:
+                    copy_rendered(s, d, subs)
+                if f.endswith((".sh", ".py")):
+                    os.chmod(d, 0o755)
     for wf in os.listdir(os.path.join(RUNTIME, "workflows")):
         copy_rendered(os.path.join(RUNTIME, "workflows", wf),
                       os.path.join(target, ".github/workflows", wf), subs)
