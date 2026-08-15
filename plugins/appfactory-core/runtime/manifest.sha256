@@ -13,6 +13,7 @@ dff162154c9a12e3b4b4b0bda3cdd9f39cc56fedb677aecfbb0d26db42b442ed  ./scripts/pref
 1189dbd5013a530b704586915a2675a0683353539b5ab38c21ffc1f13eba2a93  ./scripts/preflight/checks/070-xml-resources-parse.sh
 d435cdf9b8c84310cf1e547e660fc33181c72032a6ea6b4e5d63ff754a6ab675  ./scripts/preflight/checks/080-workflow-yaml-parses.sh
 ee95283a1d8645479d6f63eafcc6395c9a6b7499944e12afe6ba7269fd947e24  ./scripts/preflight/checks/090-db-version-has-schema.sh
+48d14afa882f94cbaa0c48d5d7acfde45609a31fd479ce97df1139bec39e637a  ./scripts/preflight/checks/100-workflow-scripts-exist.sh
 feb1e2be9d91101c7b3d9a4b1f5bab9c69b44aba60cf60dc929370096faf2864  ./scripts/preflight/fixtures/010-catalog-aliases/README.md
 a15c5278cc9042ab575e61ae3b6b3905a1cd4adcb8f38a3f65350f01122b84df  ./scripts/preflight/fixtures/010-catalog-aliases/bug/app/build.gradle.kts
 10c6a00affc2da1d5b7d6bc17d1de7a00564f43b7be896a9d194e27c23416ccf  ./scripts/preflight/fixtures/010-catalog-aliases/bug/gradle/libs.versions.toml
@@ -78,6 +79,12 @@ f67045de60591a3862d910af2c463089f77bb04e6b75b0d9b6720bd2e8cf944f  ./scripts/pref
 4f17c9c1e519272a796167e8ee74481ab92dcd5734a8c83be5d1eb8d9a15aae9  ./scripts/preflight/fixtures/090-db-version-has-schema/fixed/app/schemas/com.example.demo.DemoDatabase/1.json
 3e2c9d4a1014100dd65c567e46b922e296c803e932c3d9a8481d48f55214f6b8  ./scripts/preflight/fixtures/090-db-version-has-schema/fixed/app/schemas/com.example.demo.DemoDatabase/2.json
 1330609d5497c2b208d5966383439740af2ca170ba90acd1fb454e0f86891348  ./scripts/preflight/fixtures/090-db-version-has-schema/fixed/app/src/main/java/com/example/demo/DemoDatabase.kt
+967275b7e1ed85130a2eafb473f57da6d51714390b56cc9ca7f6ebd5e43e4ba9  ./scripts/preflight/fixtures/100-workflow-scripts-exist/README.md
+963485f0f3f4b59aa672e307110a05187d0360813e25c12172503cd22ac61289  ./scripts/preflight/fixtures/100-workflow-scripts-exist/bug/.github/workflows/ci.yml
+1d95fc04a80c952f49ce4188627c53b0fbe8c44041b952d592acd1de99861466  ./scripts/preflight/fixtures/100-workflow-scripts-exist/bug/scripts/preflight.sh
+963485f0f3f4b59aa672e307110a05187d0360813e25c12172503cd22ac61289  ./scripts/preflight/fixtures/100-workflow-scripts-exist/fixed/.github/workflows/ci.yml
+1d95fc04a80c952f49ce4188627c53b0fbe8c44041b952d592acd1de99861466  ./scripts/preflight/fixtures/100-workflow-scripts-exist/fixed/scripts/preflight.sh
+d682cbdb4c8b07518bf486c58990fc391783aa20a916bfb27ad211eb1d5c3642  ./scripts/preflight/fixtures/100-workflow-scripts-exist/fixed/scripts/verify_mapping.py
 3fc716f1680dbaf830b912b95c2f6007216cc5321caffdef9434780fa5fba5d4  ./scripts/preflight/lib.sh
 56449e7dc9105cae81c2221053e2c37343bc4905d3d3021a6e85b06031aa8072  ./scripts/preflight/selftest.sh
 bb9e29dedfc4f5f74b75cff137cfc72589b5777ed6f6b4a77600f55824b5806d  ./templates/app/src/androidTest/java/LaunchTest.kt
@@ -103,7 +110,7 @@ ade701edeb68bc53b46967a4d1a79d718e3d43e68c55613ebb9ffeacbcb28b5b  ./templates/gr
 e57480d9db84febcb1d348d0e1c1a7e89ba6916056e520d25b0b348983088744  ./templates/gradle/root.build.gradle.kts
 e74a0dec6ee28d1f7239688be6c6f9910dfb0da1e4d5678c0c89ff479d9694c7  ./templates/gradle/settings.gradle.kts
 a05d5346238ab3f17c4e2b1e18f03481846a76a363a5a3d6501a1fe7cf4e9ab4  ./versions/2026-08.toml
-133d2b950467310a98cb7f2f1d9bd37b6c1a078d0bbfa5ba45a0b715b9570af3  ./workflows/ci.yml
+e401b25cffc571a24b2d2888deea82a2062397863b316b73306e50d20e3e1882  ./workflows/ci.yml
 7fa08cfe30ff24c79e5e992e397ed278296688328abe0d980b003c9f37678ee4  ./workflows/emulator.yml
-5a65a8ff13bbef346328a9862820cd9cda9d1e6f8e96c0d7182951b0ca87dd3a  ./workflows/release.yml
+1f04720e44db59c0260d46adb29833b93ceccaf108cedb8bc3be93beb54ad58a  ./workflows/release.yml
 0ee4029faf8bc97f2ac93955a7851dbf90ef5e70d4951f313298cc34b0f56aa1  ./workflows/secret-doctor.yml
