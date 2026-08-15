@@ -1,0 +1,8 @@
+{
+  "name": "appfactory-core",
+  "version": "0.1.0",
+  "description": "Vendored runtime, stage ledger, secrets vault and guard hooks for the appfactory Android pipeline. Mandatory base for appfactory-plan, -ui and -build.",
+  "author": { "name": "Eyal Nof", "email": "verbalogic.project@gmail.com" },
+  "license": "Apache-2.0",
+  "keywords": ["android", "kotlin", "compose", "ci", "apk"]
+}
