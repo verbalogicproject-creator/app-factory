@@ -117,6 +117,6 @@ e57480d9db84febcb1d348d0e1c1a7e89ba6916056e520d25b0b348983088744  ./templates/gr
 e74a0dec6ee28d1f7239688be6c6f9910dfb0da1e4d5678c0c89ff479d9694c7  ./templates/gradle/settings.gradle.kts
 a05d5346238ab3f17c4e2b1e18f03481846a76a363a5a3d6501a1fe7cf4e9ab4  ./versions/2026-08.toml
 e401b25cffc571a24b2d2888deea82a2062397863b316b73306e50d20e3e1882  ./workflows/ci.yml
-7fa08cfe30ff24c79e5e992e397ed278296688328abe0d980b003c9f37678ee4  ./workflows/emulator.yml
+1e90120330ebab2e9dec2e5aad14af5d940337fc5e54b0d5651d5f25991507ed  ./workflows/emulator.yml
 1f04720e44db59c0260d46adb29833b93ceccaf108cedb8bc3be93beb54ad58a  ./workflows/release.yml
 0ee4029faf8bc97f2ac93955a7851dbf90ef5e70d4951f313298cc34b0f56aa1  ./workflows/secret-doctor.yml
