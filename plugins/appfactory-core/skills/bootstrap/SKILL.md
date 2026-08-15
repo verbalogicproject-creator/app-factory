@@ -20,7 +20,7 @@ before rendering a pixel.
 
 ## Step 1 — Settle the irreversible decisions FIRST
 
-Exactly three things about an Android app can never change after the first user
+Two things about an Android app have no migration path after the first user
 installs it. Ask about these before anything else, and say why they are permanent:
 
 | Decision | Consequence of changing it |

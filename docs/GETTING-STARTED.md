@@ -18,15 +18,17 @@ Then, in the directory where the app should live:
 It refuses to be a template copy. The order below is the design, and each step exists
 because skipping it caused a specific, recoverable-only-with-difficulty failure.
 
-### 1. Settle the irreversible decisions
+### 1. Settle the decisions that cannot be walked back
 
-Android has exactly three things that can never change after a user installs:
+Two decisions have **no migration path** once a user installs, and one is
+migration-sensitive. All three are settled first; the distinction matters when
+something goes wrong.
 
-| Decision | Why it is permanent |
-|---|---|
-| `applicationId` | changing it makes a different app; the old install cannot upgrade |
-| signing certificate | Android refuses an update signed by a different key |
-| persisted schema version | the data is already on someone's device |
+| Decision | Status | Why |
+|---|---|---|
+| `applicationId` | **immutable** | changing it makes a different app; the old install cannot upgrade |
+| signing certificate | **immutable** | Android refuses an update signed by a different key |
+| persisted schema | migration-sensitive | it *can* change — that is what migrations are for — but the data is already on someone's device, so a wrong migration destroys it |
 
 `bootstrap` asks for these first and **refuses to advance while any is `TBD`**.
 Everything downstream is cheap to change. These are not.

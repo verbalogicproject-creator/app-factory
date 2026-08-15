@@ -54,9 +54,15 @@ later failure is attributable to app code rather than to the pipeline.
 
 It runs in this order, and the order is the point:
 
-1. **Irreversible decisions first.** Android has exactly three things that can never
-   change after the first install: `applicationId`, the signing certificate, and the
-   persisted schema version. These are settled before anything else is built.
+1. **Immutable decisions first.** Two things about an Android app have **no migration
+   path at all** once a user installs: `applicationId` and the signing certificate.
+   Change either and the installed copy cannot upgrade — it becomes a different app.
+   These are settled before anything else is built.
+
+   The persisted schema is a third decision settled here, but it is **migration-
+   sensitive rather than immutable**: it *can* change, which is what migrations are
+   for. What cannot be undone is that data already sits on devices, so a wrong
+   migration destroys it. A different risk, and worth a different word.
 2. **Generate and verify locally** — 12 static checks, ~2 seconds.
 3. **Key into an encrypted vault, with a blocking backup step.** Losing a release key
    means you cannot ever update the installed cohort. There is no recovery.

@@ -18,8 +18,8 @@ red. A fresh install and an upgraded install simply end up carrying different ta
 definitions, and the first raw `INSERT` omitting the column works on one phone and
 fails on another.
 
-The persisted schema is one of exactly three Android decisions that cannot change after
-release, so correcting it later means shipping a whole extra migration to fix a schema
+A persisted schema can only change forwards, by migrating data that already sits on
+devices, so correcting this later means shipping a whole extra migration to fix a schema
 that should never have differed.
 
 ## How it was found
