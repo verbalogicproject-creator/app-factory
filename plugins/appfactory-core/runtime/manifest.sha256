@@ -3,7 +3,7 @@
 fd0e1379dc5002dbe372bd16da908a23a98989cbc96d619fbefa2e3ce51b2856  ./bin/scaffold.py
 f931e493d285a6fe4d54aa9074616e02dc425057dcdf10405c9da49664760bc0  ./bin/verify_mapping.py
 3f27861a2b28f284849a3069fc39bd7d3b87d7a44360f066e771e1c04e4ccfb1  ./scripts/emulator-verify.sh
-1c91ae5fc5b3e5229544dc1b2a510f18ed15d03025e21d055da7f1920b1e719b  ./scripts/preflight.sh
+b046e797fe5f957c1123e58e4adf1418c8d515af50e394e0c9a1d0ebae1c3223  ./scripts/preflight.sh
 7bf02e26d10dc356ba151c39d1f22f7aefd7fca8549c3b5467a7021c39f21ba1  ./scripts/preflight/checks/010-catalog-aliases.sh
 f9bf5a397b8b879d5456f9b8ac88c0af4606a1664e1ef53187a1b200157a2915  ./scripts/preflight/checks/020-build-referenced-files.sh
 8fff5a7a8cdc707936cdfda7b123b325c6dd413bfec7278a509e0053c0ddb0c2  ./scripts/preflight/checks/030-manifest-resources.sh
