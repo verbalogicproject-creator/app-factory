@@ -523,3 +523,34 @@ structural fix over the disciplinary one.
   `cmd`), which makes the dead end look reachable right up until it isn't.
 
 ---
+
+---
+
+## 15. A Compose UI assertion that scrolls BACKWARDS passes on new APIs and fails on old ones
+
+**Observed.** `ExpertDetailRetrievalTest` asserted a quotation, then its provenance, then
+scrolled back UP to check a status line above both. 118/118 green on API 36; on API 29 the
+last assertion failed with "is not displayed". The app was correct on both. What changed
+between the passing and failing runs was a test FIXTURE growing from one short quotation to
+a 240-line one — long enough that the backwards scroll had somewhere to go.
+
+**Why it is worth an entry.** The failure names the assertion, not the cause, so it reads
+as a rendering bug on old APIs. It is not: `performScrollTo` brings a node into view, and
+scrolling backwards through a tall container can land it against the viewport edge with no
+visible height to assert on. The API where it fails is incidental; the ORDER is the defect.
+
+**Proposed change.** State it as a rule for scrolling (non-lazy) Compose surfaces: **assert
+in reading order, top to bottom, so every scroll moves forward.** It costs nothing, it is
+how a user encounters the screen, and it removes an entire class of API-dependent
+flakiness. Pair it with the existing lazy-list rule from entry 14's postscript — those two
+together cover most scroll-related test failures:
+
+- lazy list → `performScrollToNode` on the LIST, never `performScrollTo` on the row
+- scrolling column → `performScrollTo` is fine, but only ever forward
+
+**The wider pattern, again.** Entries 5, 6, 13 and 14 all reduce to *green means "the thing
+that ran, passed"*. This one is the variant where the thing DID run, on one rung, and the
+other rung was the honest one. A matrix that tests two API levels is worth keeping for
+exactly this reason — the divergence was real information, not noise to be suppressed by
+pinning to the newer image.
+
