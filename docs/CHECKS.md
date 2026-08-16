@@ -1,6 +1,6 @@
 # The check corpus
 
-Twelve static checks, roughly two seconds, run before `git push` is allowed to proceed.
+Nineteen static checks, roughly two seconds, run before `git push` is allowed to proceed.
 
 Every one exists because a specific failure happened and cost a CI round trip or worse.
 A check with no incident behind it is a guess, and is labelled as one.
@@ -21,6 +21,13 @@ A check with no incident behind it is a guess, and is labelled as one.
 | 100 | workflows invoking scripts that do not exist | a path that survived a vendoring change |
 | 110 | unrendered `{{PLACEHOLDER}}` in generated output | a literal `{{APPLICATION_ID}}` shipped in a script |
 | 120 | HTTP code with no `INTERNET`; network config present but unwired | `Operation not permitted`, with a second bug hiding behind it |
+| 130 | migration `ADD COLUMN` disagreeing with the exported schema | a default that differed between migration and schema |
+| 140 | `targetSdk` below Play's submission floor | a release blocked at upload, after it was cut |
+| 150 | native code without `jniLibs.useLegacyPackaging = true` | `.so` shipped but not extracted; directory-scanning loaders found nothing |
+| 160 | Kotlin DSL importing `java.*` and shadowing a Gradle type | a build script that resolved the wrong `Properties` |
+| 170 | `shrinkResources` in the Groovy form inside Kotlin DSL | silently not shrinking |
+| 180 | `actions/upload-artifact` without `if-no-files-found: error` | a release that published nothing and said success |
+| 190 | a packaged `.so` whose `DT_NEEDED` does not resolve | **`dlopen failed: library "libomp.so" not found`, on a device, everything else green** |
 
 Two of those deserve expansion, because they are the ones that teach something.
 
@@ -32,6 +39,25 @@ like an infrastructure problem rather than a syntax error in your own file.
 Behind it sat a `network_security_config.xml` that existed, was correct, and was never
 referenced from `<application android:networkSecurityConfig>` — inert, and invisible
 until the first bug was fixed.
+
+**190** is the corpus's second demotion from the emulator rung, and the more instructive
+one, because the emulator could never have made the catch at all.
+
+Eight arm64 libraries declared `NEEDED libomp.so` and none of them shipped it. ggml links
+against OpenMP on arm64; `libomp.so` belongs to the NDK, and a workflow running `cmake`
+directly packages only what `cmake` wrote — where building through AGP would have collected
+it. Build green, unit tests green, lint green, R8 green, eighteen preflight checks green,
+and the app dies at the first `System.loadLibrary`.
+
+**No x86_64 library declares that dependency**, because upstream enables OpenMP for arm64
+only — and the emulator rung is x86_64. This was not a gap the emulator happened to miss; it
+is one the emulator is structurally incapable of seeing. Finding it took a physical device,
+a CI republish and a trust-anchor update. The check reads the same ELF header the loader
+reads, in about a second, and covers `armeabi-v7a` and `x86` as well — ABIs that neither a
+test device nor an emulator exercises here.
+
+It states its own limit: it proves every dependency is *present*, not that the library
+*loads*. A missing symbol inside a library that is present still gets through.
 
 ## The fixture contract
 
@@ -47,9 +73,15 @@ fixtures/<id>/
   README.md       the real incident this came from
 ```
 
-There are 6 evasion fixtures, each from a real near-miss: `bug-comment-only` (an
+There are 7 evasion fixtures, each from a real near-miss: `bug-comment-only` (an
 annotation inside a comment satisfying a presence-grep), `bug-wrong-class`,
-`bug-theme-mismatch`, `bug-test-proguard`, `bug-loose-match`, `bug-config-unwired`.
+`bug-theme-mismatch`, `bug-test-proguard`, `bug-loose-match`, `bug-config-unwired`, and
+`bug-wrong-abi` (the dependency *is* in the repo, in a different ABI directory — the loader
+searches one ABI and does not fall back, so a repo-wide filename search passes it).
+
+Fixtures may be binary where the defect is binary. 190's are real ELF objects, built with
+`-nostdlib` so they declare no libc and `-Wl,-z,max-page-size=4096` because aarch64's
+default 64K alignment made otherwise-empty files 66KB. They are about 5KB each.
 
 `selftest.sh` runs every check against every fixture. It was itself falsified in all
 three of its own failure modes before being trusted.
