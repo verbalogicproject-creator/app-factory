@@ -91,6 +91,7 @@ scripts/
   preflight.sh                 the runner
   preflight/checks/            12 checks
   preflight/fixtures/          a reproduction of every bug the checks catch
+  local-toolchain.sh           doctor: can this machine build locally, and if not why
 .github/workflows/
   ci.yml                       preflight -> compile -> test -> R8
   release.yml                  tag -> signed APK + AAB + mapping.txt + SHA256SUMS
@@ -105,6 +106,21 @@ scripts/
 git push                        # the hook runs preflight and blocks on failure
 gh run list --commit $(git rev-parse HEAD)
 ```
+
+If a local toolchain is set up — see [`LOCAL-BUILDS.md`](LOCAL-BUILDS.md), and
+`local-toolchain.sh` to check whether one is — the inner loop tightens considerably:
+
+```
+bash scripts/local-toolchain.sh            # is a local build possible here?
+./gradlew :app:compileDebugKotlin          # 13-21s   types, KSP, Hilt graph
+./gradlew :app:testDebugUnitTest           # ~45s     logic
+./gradlew :app:lint                        # ~75s     patterns that compile and fail later
+./gradlew :app:assembleRelease             # ~2m20s   R8
+```
+
+**This does not replace the push.** CI is the only x86_64 build, the only one on a
+machine that is not yours, and the only place the emulator, signing and the cert pin
+run. What local rungs buy is that a missing import stops costing a round trip.
 
 Always pass `--commit` with a **full** SHA. `gh run list --limit 1` races the push and
 happily returns the *previous* commit's run — which once had a fix reported as verified

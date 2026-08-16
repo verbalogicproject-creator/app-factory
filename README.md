@@ -13,17 +13,50 @@ Android APK** — from a phone with no Android SDK.
 
 ## The constraint everything follows from
 
-Android build-tools are x86_64-only. This was built on an aarch64 phone under Termux
-and PRoot, where the local `java` is JDK 25 and the local `gradle` is 4.4.1 — so AGP
-8.3, which needs JDK 17 and Gradle 8.4+, is blocked three separate ways.
+This was built on an aarch64 phone under Termux and PRoot. Google ships Android
+build-tools as x86_64 binaries only, so nothing could compile locally:
 
-**GitHub Actions is the compiler.** Every build is a push, and every push costs
+**GitHub Actions was the compiler.** Every build was a push, and every push cost
 2–5 minutes.
 
-That single fact reshapes the whole design. When a round trip is minutes, the thing
+That single fact reshaped the whole design. When a round trip is minutes, the thing
 worth optimising is not build speed but **time-to-failure** — how fast a mistake is
 caught, and how far up the chain it can be caught. Hence a 2-second static check corpus
 that runs before `git push` is even allowed to proceed.
+
+### The constraint has since been lifted, and the design still holds
+
+It was stated here as three blockers — x86_64 build-tools, JDK 25, Gradle 4.4.1. Two of
+those were never blockers, and the third had a fix:
+
+| Claimed blocker | What was actually true |
+|---|---|
+| local `java` is JDK 25 | JDK 25 is the **default**, not the only JDK. `openjdk-17-jdk` installs from apt on arm64 and `JAVA_HOME` selects it |
+| local `gradle` is 4.4.1 | that is the **system** gradle, which a project with a wrapper never invokes |
+| build-tools are x86_64-only | true of **Google's** build. Third-party aarch64 builds of `aapt2` exist and work |
+
+`docs/VERIFICATION.md` had already named the real blocker precisely — *"`aapt2` is the
+only genuinely native blocker; Kotlin, KSP, R8 and Compose are all JVM"* — and
+predicted the payoff. Both halves turned out to be right.
+
+Measured on the conformance app, aarch64 phone, warm daemon:
+
+| | before | now |
+|---|---|---|
+| typecheck a rename | 2–5 min (push) | **13–21 s** |
+| unit tests | 2–5 min (push) | **~45 s** |
+| release APK with R8 | 2–5 min (push) | **2 m 18 s** |
+
+**None of the corpus becomes redundant.** Preflight still runs in 2 seconds against a
+1-minute local compile, and the checks that matter most — Hilt wiring, a fabricated
+font certificate, a signing key that drifts — are things that *compile perfectly* and
+fail on a device. A faster compiler moves one class of error earlier; it does not touch
+the class this project exists for.
+
+What it does change is that **V2 exists now** — see `docs/LOCAL-BUILDS.md` for the
+setup, and `docs/VERIFICATION.md` for where the new rungs sit. Local rungs are an
+*addition* to CI, not a replacement: CI remains the only x86_64 build, and the only one
+that runs on a machine other than the author's.
 
 ## What this exists to prevent
 
@@ -78,9 +111,11 @@ Each rung catches something no cheaper rung can. Cost is why the order matters.
 |---|---|---|
 | authoring hooks | ~0.2s | unpinned run lookups, secret material, pushing without preflight |
 | static preflight | ~2s | 12 check classes |
-| CI compile | 2–4 min | types, Compose compiler, KSP/Hilt graph |
-| unit tests | +30s | logic, serialization, Room migration |
-| R8 / minify | +90s | missing keep rules |
+| **local compile** | 13–21s | types, Compose compiler, KSP/Hilt graph |
+| **local unit tests** | ~45s | logic, serialization, Room migration |
+| **local lint** | ~75s | patterns that compile and fail later |
+| **local R8 / minify** | ~2m20s | missing keep rules |
+| CI compile + test + R8 | 2–4 min | **the same, on x86_64, on a machine that is not yours** |
 | **emulator** | 6–12 min | **launch crashes** — the first rung that answers "does it run" |
 | physical device | manual | OEM behaviour, and the two worst bugs found here |
 
@@ -155,9 +190,15 @@ certificate fingerprint, which are useless when extracted.
 which went from nothing to a signed, installed, running APK across five tags — with a
 tested Room migration and a certificate pinned and verified before each publish.
 
+**Proven:** local aarch64 builds — compile, unit tests, lint and R8 — on the phone this
+was built on, closing a gap this repo had documented as open since the start. See
+[`docs/LOCAL-BUILDS.md`](docs/LOCAL-BUILDS.md).
+
 **Not proven:** that `bootstrap` reproduces the conformance repo byte-for-byte; the
 three empty plugins; anything about multi-module projects. The check corpus is
 regex-shaped and derived from single-module Compose apps, and is advertised as such.
+On local builds specifically: no local emulator (needs an x86_64 image and KVM), no
+local signing, and a toolchain assembled once, on one device, against one repo.
 
 **Top maintenance risk:** version rot. AGP, Kotlin, KSP and Compose form a tight
 compatibility lattice and runner images move underneath it. Version matrices are dated
@@ -170,5 +211,6 @@ weekly scheduled conformance build is the canary.
 |---|---|
 | [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md) | install, first app, what each stage does |
 | [`docs/VERIFICATION.md`](docs/VERIFICATION.md) | the ladder, and how each rung was falsified |
+| [`docs/LOCAL-BUILDS.md`](docs/LOCAL-BUILDS.md) | building on aarch64 without CI — setup, measurements, and what is still unproven |
 | [`docs/CHECKS.md`](docs/CHECKS.md) | the corpus, and how to add a check fixture-first |
 | [`docs/SECRETS.md`](docs/SECRETS.md) | the vault, the canary, and the two kinds of secret |
