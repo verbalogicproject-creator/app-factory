@@ -12,7 +12,7 @@ re-derived at apply time.
 Found during: Localmind Amber seven-surface shell, Aug 2026, aarch64 device
 (NX779J / Android 15) with the local toolchain.
 
-**Running tally.** 12 entries — 1 applied (10), 11 open.
+**Running tally.** 15 entries — 1 applied (10), 14 open.
 
 **One more, uncounted, found while applying 10:** `CHECKS.md` opened with *"Twelve static
 checks"* over a table of twelve, and the corpus had **eighteen** — 130 through 180 were
@@ -398,6 +398,113 @@ debugging** — which is why entry 10 matters so much more than it first looked.
 
 Note steps 2 and 4 both reported something other than the actual obstacle, the same shape as
 entries 1 and 9. Three separate times today the error named the wrong thing.
+
+---
+
+## 12. Verify a reported UI bug against commit timestamps before fixing it
+
+**Status:** OPEN
+**Where:** wherever the corpus discusses acting on a bug report or screenshot
+
+**What happened.** Three device screenshots were supplied with a brief naming a truncated
+chat header as a defect to fix. The truncation was real in the image. It had also been
+fixed four hours earlier:
+
+```
+fix landed   1d32f16  2026-08-16 10:01
+screenshots           2026-08-16 06:17-06:18
+```
+
+Two paired tests already pinned that layout from both sides and were green on API 28 and 36.
+
+**Why it matters.** This layout had already been broken **twice, in opposite directions** —
+once by an unconstrained child, once by over-constraining the fix. A third edit aimed at a
+stale image would have been the third break, and it would have looked like diligence. The
+check costs one `git log -S` against the changed expression and the file mtime of the
+report.
+
+Screenshots and bug reports carry a timestamp; the fix carries one too. Comparing them is
+cheaper than re-deriving whether the bug still exists, and much cheaper than re-breaking a
+passing layout.
+
+**Proposed change.** State it as a step: before editing in response to any bug report,
+establish whether the reported state is current. `git log -S'<expression>' -- <file>`
+against the report's timestamp answers it in seconds.
+
+---
+
+## 13. A comment can assert behaviour the adjacent line forbids
+
+**Status:** OPEN
+**Where:** wherever the corpus discusses review or the "nearly right" class
+
+**What happened.** A navigation item shipped as:
+
+```kotlin
+// ...a dead-silent disabled control is nearly as bad, so the tap says why.
+NavigationBarItem(
+    enabled = expertsAvailable,          // false
+    onClick = { navController.navigate(...) },
+```
+
+The comment states the design intent correctly, argues for it well, and sits directly above
+the line that makes it impossible: a disabled `NavigationBarItem` absorbs the press, so the
+tap said nothing. The `contentDescription` beneath it announced the reason to TalkBack, so
+the code even *looked* thorough — while a sighted user got a grey label and no explanation.
+
+**Why it matters.** This is the "nearly right" family `CHECKS.md` already treats as the
+dangerous state, in a form the corpus does not cover: not a pattern that matches too
+loosely, but **prose that documents an intention the implementation contradicts**. It reads
+as evidence the case was handled, which ends the investigation — exactly like a check that
+passes while its bug is present.
+
+A reviewer skimming for "was the disabled case considered?" finds a paragraph saying yes.
+
+**Proposed change.** No mechanical check is plausible here — this needs naming, not
+automating. Worth a line in the review guidance: when a comment claims a behaviour, the
+claim is a testable assertion, and the test is the cheap way to find out whether the code
+agrees with its own documentation. In this instance one JVM test on an extracted function
+would have caught it, and that is what replaced it.
+
+---
+
+## 15. A test that renders a different composition than production is not a test of production
+
+**Status:** OPEN
+**Where:** wherever the corpus discusses UI testing, next to entries 5 and 13
+
+**What happened.** A Compose destination assembled itself inline in the navigation graph:
+`Column(verticalScroll(...))` wrapping a screen whose populated branch is a `LazyColumn`.
+Two vertical scroll owners with the lazy one inside is an infinite-height measure and a
+hard crash. It reached a user's phone.
+
+Every rung was green. JVM tests, lint, R8, preflight, and **108 instrumented tests on two
+API levels** — because the tests rendered the SCREEN in isolation while the graph wrapped
+it in something else. The composition under test was never the composition that shipped.
+
+A second condition hid it: the crashing branch was **unreachable** until a live backend
+existed. Only a non-empty response builds the lazy list, so the first successful pairing
+on real hardware was the first time that code had ever run.
+
+**Why it matters.** This is the third distinct case in one project of a check that was
+*structurally incapable* of finding what it appeared to cover — after tests that could
+never fail (entry 5) and an emulator rung blind to an ABI by construction (entry 6). The
+common shape is worth naming: **green means "the thing that ran, passed", and the gap is
+always in what did not run.**
+
+**Proposed change.** State it as a rule for UI tests: assert against the composable the
+ROUTER uses, not a reassembly of its parts. Extracting the destination into one named
+composable shared by the graph and the test is the cheap structural fix — a wrapper added
+in either place then shows up in the other. Worth pairing with the observation that a
+branch reachable only with a live backend has never executed, whatever the test count says.
+
+**Postscript, and the reason this entry is not smug.** The regression test written to
+cover it then failed four of its own assertions — three because they used
+`performScrollTo` on rows a lazy list had not composed yet, having just replaced a
+non-lazy assumption with a lazy list; and one because it matched `"Install"` as a
+substring against the status text `"Installed, inactive"`. Knowing a rule and encoding it
+correctly on the first attempt are different things, which is the argument for the
+structural fix over the disciplinary one.
 
 ---
 
