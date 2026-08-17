@@ -107,7 +107,42 @@ suggests filing a bug. The fix is to point AGP at the native binary:
 
 ```properties
 # ~/.gradle/gradle.properties
-android.aapt2FromMavenOverride=/root/android-sdk/build-tools/36.0.0/aapt2
+android.aapt2FromMavenOverride=/data/data/com.termux/files/usr/bin/aapt2
+```
+
+### 4a. The `aapt2` VERSION matters, and getting it wrong is silent
+
+**Use `aapt2` 2.20 or newer.** `pkg install aapt2` in Termux provides
+`2.20-android-16.0.0_r4`. The SDK's own `build-tools/36.0.0/aapt2` self-reports
+`2.19-20250916` and **is not sufficient**, even though it is native aarch64 and passes
+the ELF check above.
+
+The difference appears only on the **release** path — `isMinifyEnabled` plus
+`isShrinkResources` — where 2.19 packages an APK containing dex, native libraries and
+assets and **no `AndroidManifest.xml` and no `resources.arsc`**.
+
+Nothing announces it. The zip is structurally valid, `unzip -t` reports no errors, R8
+runs, `mapping.txt` is produced, and the file is the expected size. The tools that would
+tell you are the ones nobody runs on a local build:
+
+```sh
+aapt2 dump badging app-release.apk   # error: could not identify format of APK
+apksigner verify app-release.apk     # Missing AndroidManifest.xml
+```
+
+The device's own error names the manifest —
+`INSTALL_PARSE_FAILED_UNEXPECTED_EXCEPTION: Failed to parse ...: AndroidManifest.xml` —
+which reads like a manifest bug and sends you to the wrong file.
+
+AGP's intermediate is not at fault: the shrunk resource archive under
+`app/build/intermediates/shrunk_resources_binary_format/release/` contains both files
+correctly even under 2.19. Only the final merge loses them.
+
+`scripts/verify-apk.sh` catches exactly this and now runs after `assembleRelease` in both
+`ci.yml` and `release.yml`. Run it locally too:
+
+```sh
+bash scripts/verify-apk.sh app/build/outputs/apk/release/app-release.apk
 ```
 
 ### 5. `local.properties`
@@ -168,14 +203,22 @@ pushing it.
 - `assembleDebug` — installable APK, verified running on a physical device
 - `assembleDebugAndroidTest` — test APK packages
 - `assembleRelease` — **R8 runs**, produces a 23 MB unsigned APK and a 35 MB
-  `mapping.txt`
+  `mapping.txt`. **Read that as narrowly as it is written.** It says R8 ran and files
+  appeared; it does *not* say the APK was installable, and on `aapt2` 2.19 it was not —
+  see §4a. That sentence sat in this "Proven" list while the artifact it described could
+  not be parsed by any tool. Assert the artifact, not the step:
+  `bash scripts/verify-apk.sh <apk>`.
 - `lint` with `abortOnError = true`
+- **Instrumented tests on a physical device** — 132 tests, 0 failures, over
+  wireless-debugging `adb` from inside PRoot. See "Instrumented tests without an
+  emulator" below.
 
 **Not proven** — stated because a documented gap is safer than an assumed rung:
 
-- **Instrumented tests locally.** The emulator needs an x86_64 system image and KVM;
-  neither exists here. V6a remains CI-only, and it is still the first rung that answers
-  *does it run*.
+- **Instrumented tests on an EMULATOR locally.** The emulator needs an x86_64 system
+  image and KVM; neither exists here. That rung stays CI-only. **The emulator is not the
+  only way to run instrumented tests, though — the physical device works, and that moved
+  from this list to "Proven" above.**
 - **Local signing.** The release build above is unsigned. The vault, the cert pin and
   the publish path have not been exercised locally.
 - **Reproducibility.** This was set up once, on one device, against one repo. It has
@@ -183,6 +226,69 @@ pushing it.
 - **Durability across AGP versions.** It works because a third-party `aapt2` happens to
   be new enough for AGP 9.0.0. An AGP bump can outrun it, and the symptom will be the
   misleading daemon-startup error above.
+
+## Instrumented tests without an emulator
+
+The phone this builds on is also an Android device. `adb` can reach it over its own
+loopback, so the instrumented rung is available locally after all — **132 tests, 0
+failures**, on real hardware rather than an x86_64 emulator.
+
+### Getting a connection
+
+Wireless debugging needs a **Wi-Fi interface**, not a Wi-Fi *network*. The phone's own
+portable hotspot is enough, and it is far more stable than joining a network — every drop
+kills wireless debugging and rotates the port.
+
+1. Settings → Developer options → **Wireless debugging** → on
+2. **Pair device with pairing code** — once, ever:
+   `adb pair localhost:<pairing-port> <code>`
+3. Each session, read `IP address & Port` off that screen:
+   `adb connect localhost:<port>`
+
+Pairing persists in `~/.android/adbkey` and `adb_known_hosts.pb`; only the connect port
+rotates. `adb mdns services` returns nothing from PRoot — no multicast — so the port has
+to come off the screen. Use the **SDK's** `adb`; the Termux build lacks mDNS support.
+
+### Running the suite
+
+```sh
+./gradlew assembleDebug assembleDebugAndroidTest      # build FIRST
+adb install -r -d app/build/outputs/apk/debug/app-debug.apk
+adb install -r -d -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+for k in window_animation_scale transition_animation_scale animator_duration_scale; do
+    adb shell settings put global $k 0
+done
+adb shell am instrument -w <applicationId>.test/androidx.test.runner.AndroidJUnitRunner
+for k in window_animation_scale transition_animation_scale animator_duration_scale; do
+    adb shell settings put global $k 1
+done
+```
+
+Five things cost real time to learn:
+
+- **Do not use `connectedAndroidTest` on an unstable link.** Gradle compiles for minutes
+  before it looks for a device, and the connection dies first. Pre-build, then install and
+  instrument directly — about a minute.
+- **Install *both* APKs.** Skipping the install and running `am instrument` against
+  whatever is already on the device produced **68 `NoSuchMethodError`** from a stale
+  app/test mismatch, which reads exactly like real test failures. Gradle's
+  `connectedAndroidTest` does this install for you; bypassing it bypasses that too.
+- **Zero the animation scales.** Emulators boot with them at 0, phones run at 1, and
+  Compose's `waitForIdle` never settles while animations run. Restore them afterwards.
+- **Crashes may not be in logcat.** Some OEM ROMs filter it; app lines never appear. Use
+  `adb shell dumpsys dropbox --print`, which is where the
+  `NoClassDefFoundError: androidx.tracing.Trace` behind a "hanging" release-variant run
+  was finally found.
+- **A green run is evidence only about the tree it ran against.** A device pass carried
+  forward across a later change is not coverage — that mistake put a broken assertion on
+  a remote branch.
+
+### What this rung does and does not add
+
+It runs on **real hardware and the real ABI**, which the x86_64 emulator cannot, and it
+needs no KVM. It is still **one device, one OS build, one API level**. The emulator rung's
+value was never that it was an emulator — it was API-level breadth on a machine that is
+not the author's. That reasoning is unchanged.
 
 ## This does not replace CI
 

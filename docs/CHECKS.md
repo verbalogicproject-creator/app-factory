@@ -28,8 +28,9 @@ A check with no incident behind it is a guess, and is labelled as one.
 | 170 | `shrinkResources` in the Groovy form inside Kotlin DSL | silently not shrinking |
 | 180 | `actions/upload-artifact` without `if-no-files-found: error` | a release that published nothing and said success |
 | 190 | a packaged `.so` whose `DT_NEEDED` does not resolve | **`dlopen failed: library "libomp.so" not found`, on a device, everything else green** |
+| 200 | an `androidTest` source reading a build-type-only source set | **a fixture in `src/debug` pinned the whole instrumented suite to one build type — and retired a verification rung on false evidence** |
 
-Two of those deserve expansion, because they are the ones that teach something.
+Three of those deserve expansion, because they are the ones that teach something.
 
 **080** cost a wasted release tag. GitHub names a run after the *file path* when the
 YAML will not parse, and `--log-failed` returns "log not found" — so the failure looks
@@ -58,6 +59,60 @@ test device nor an emulator exercises here.
 
 It states its own limit: it proves every dependency is *present*, not that the library
 *loads*. A missing symbol inside a library that is present still gets through.
+
+**200** is the corpus's first check against a failure of *evidence* rather than of code.
+
+Two instrumented tests called a fixture living in `src/debug`. The debug suite compiled and
+passed, so nothing looked wrong — but `src/debug` is not compiled for the release variant,
+so the first attempt to run that suite against the minified build died in the Kotlin
+compiler with `Unresolved reference 'debug'`, in a test file, naming a symbol rather than a
+layout.
+
+What makes it worth a check is the second-order damage. The project's build file recorded,
+in a long and careful comment, that release instrumentation *"HANGS with no output until the
+45-minute job timeout"* and concluded that behavioural testing of the minified variant was
+unachievable — so R8 coverage was deliberately narrowed and the gap written down as
+permanent. That conclusion was reasonable from the outside and wrong underneath: the run
+never reached a device, because it never compiled. **A coupling like this does not just
+break one run; it can retire an entire rung on evidence that was never gathered.**
+
+The check flags only packages declared in a build-type source set and *not* also in `main`,
+because a package in `main` is legitimately visible everywhere and flagging it would make
+the check noise. It catches both the `import` form and the fully-qualified call with no
+import — the second is what the real incident used, and an import-only pattern passes
+straight over it. That is the same near-miss shape as the three failures in this corpus's
+own history.
+
+Preview fixtures belong in `src/debug`; that is what it is for. A fixture that *tests*
+assert on belongs to the test source set. Keeping a small builder in both is the correct
+outcome, not a DRY violation to refactor away.
+
+## Post-build: is the artifact an artifact?
+
+`scripts/verify-apk.sh` is not a preflight check — preflight runs before a build, and there
+is no APK to look at. It runs after `assembleRelease` in both `ci.yml` and `release.yml`,
+and answers the question every other rung skips: not *did the build step succeed*, but *is
+the thing it produced installable*.
+
+The incident: on an aarch64 host, `aapt2 2.19` packaged a release APK containing dex, native
+libraries and assets — and **no `AndroidManifest.xml` and no `resources.arsc`**. The zip was
+structurally intact, `unzip -t` reported no errors, R8 ran, `mapping.txt` was produced, the
+file was the expected size, and the release workflow passed **ten times out of ten**. AGP's
+own shrunk resource archive was correct; only the final merge lost them.
+
+It was found by a human trying to install it, and the platform's error is
+`INSTALL_PARSE_FAILED_UNEXPECTED_EXCEPTION: Failed to parse ...: AndroidManifest.xml` —
+which names the manifest and sends the investigation to the wrong file entirely. `aapt2 2.20`
+packages it correctly, so the check's failure message names the toolchain version rather
+than the symptom.
+
+It runs **before** the signing check in `release.yml`, deliberately. Signature verification
+presumes a file the platform can already parse; on a malformed container it either fails for
+a reason unrelated to keys or passes over an artifact nobody can install.
+
+Its limit is stated in its own output: it proves the container is well-formed and parseable.
+It does not prove the app runs, or that R8 kept what it needed. It exists precisely because a
+narrow check — *"R8 ran and a file exists"* — was mistaken for a broad one.
 
 ## The fixture contract
 

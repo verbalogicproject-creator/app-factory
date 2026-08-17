@@ -139,6 +139,23 @@ jobs:
           ORG_GRADLE_PROJECT_versionCode: ${{ steps.tag.outputs.code }}
         run: ./gradlew assembleRelease bundleRelease --stacktrace
 
+      # BEFORE the signing check, deliberately. Signature verification answers "who
+      # signed this", which presumes a file the platform can already parse. On a
+      # malformed container that check either fails for a reason that has nothing to
+      # do with keys, or passes over an artifact nobody can install. Establish that
+      # the artifact IS an artifact first, then ask whose it is.
+      - name: Verify the release APK is a well-formed APK
+        run: |
+          APK=$(find app/build/outputs/apk/release -name "*.apk" ! -name "*unsigned*" | head -1)
+          if [ -z "$APK" ]; then
+            APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          fi
+          if [ -z "$APK" ]; then
+            echo "::error::assembleRelease produced no APK under app/build/outputs/apk/release"
+            exit 1
+          fi
+          bash scripts/verify-apk.sh "$APK"
+
       - name: Verify the APK is signed WITH THE RIGHT KEY
         run: |
           APK=$(find app/build/outputs/apk/release -name "*.apk" ! -name "*unsigned*" | head -1)
