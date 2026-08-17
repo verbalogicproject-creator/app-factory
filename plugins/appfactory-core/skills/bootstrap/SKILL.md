@@ -31,7 +31,18 @@ installs it. Ask about these before anything else, and say why they are permanen
 
 Use `AskUserQuestion` for the app name, `applicationId`, GitHub repo name, and
 `minSdk`/`targetSdk`. Recommend `minSdk 28` (adaptive icons need 26; 28 avoids PNG
-fallbacks entirely) and `targetSdk 34`.
+fallbacks entirely) and **`targetSdk 36`**.
+
+**Where that number comes from, and do not hardcode a different one here.** Play's
+submission floor is owned by the requirements table inside preflight check
+`140-target-sdk-submittable.sh`, which is dated and cites its upstream. Take the highest
+row whose date has passed — and if the next row lands within a few months, take that one
+instead, because an app generated today is submitted later.
+
+This file previously recommended `targetSdk 34`, which check `140` exists specifically to
+**reject**. A generator whose default fails the generator's own gate is worse than no
+default: it teaches the first-run user that a red check is normal. If you change the
+number, change it in the table first and let this follow.
 
 Anything guessed rather than confirmed goes into `.appfactory/contract/UNVERIFIED.md`
 and stays flagged until a human confirms it.
@@ -40,7 +51,7 @@ and stays flagged until a human confirms it.
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/runtime/bin/scaffold.py" <target-dir> \
-    --application-id <id> --app-name "<name>" --min-sdk 28 --target-sdk 34
+    --application-id <id> --app-name "<name>" --min-sdk 28 --target-sdk 36
 ```
 
 It refuses an invalid `applicationId` or a `minSdk` below 26 rather than discovering

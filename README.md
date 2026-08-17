@@ -1,7 +1,7 @@
 # appfactory
 
 A Claude Code marketplace that turns an app idea into a **signed, installed, running
-Android APK** — from a phone with no Android SDK.
+Android APK** — from a terminal, with or without a local Android SDK.
 
 ```
 /plugin marketplace add verbalogicproject-creator/appfactory

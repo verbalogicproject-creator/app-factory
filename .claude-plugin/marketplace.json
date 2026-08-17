@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "appfactory",
-  "description": "The App Factory — turn an app idea into a signed, installed, verified-running Android APK, from a terminal, with no local Android SDK. Every check in it was derived from a failure that actually shipped.",
+  "description": "The App Factory — turn an app idea into a signed, installed, verified-running Android APK, from a terminal, with or without a local Android SDK. Every check in it was derived from a failure that actually shipped.",
   "owner": {
     "name": "Eyal Nof",
     "email": "verbalogic.project@gmail.com"
