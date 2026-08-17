@@ -106,10 +106,17 @@ Owns what `bootstrap` currently under-serves: the *decisions*, separately from t
 - `targetSdk` taken from check `140`'s dated table rather than a literal
 - `.appfactory/contract/UNVERIFIED.md` for anything guessed, flagged until confirmed
 
-**Open question, needs a decision before work starts:** does `bootstrap` move out of
-`appfactory-core` into `-plan`? Cleaner conceptually; breaks every existing install.
-Recommendation: leave `bootstrap` where it is, have `-plan` *precede* it, and let
-`bootstrap` consume the contract `-plan` produces.
+**Decided.** `bootstrap` stays in `appfactory-core`. `-plan` runs **before** it and
+produces the contract that `bootstrap` then consumes. Moving `bootstrap` would have been
+cleaner on a whiteboard and would have broken every existing install for no user-visible
+gain.
+
+The seam this creates is the useful part: `-plan` writes
+`.appfactory/contract/` — decisions, their consequences, and `UNVERIFIED.md` — and
+`bootstrap` reads it instead of re-interviewing. That makes the contract a real artifact
+rather than a conversation, so it can be reviewed, diffed, and pointed at when someone
+later asks why `applicationId` is what it is. It also means `bootstrap` keeps working with
+no contract present, which is what protects existing installs.
 
 **Acceptance:** a project generated after the interview passes all 20 checks on its first
 preflight run — the generator's output is itself a fixture.
@@ -139,11 +146,10 @@ wrap it rather than duplicate it** before writing anything.
 
 These stand on their own and are cheap:
 
-1. **A check that docs match the corpus.** "12 checks" survived in six places against 19 on
-   disk. `manifest.sha256` drifted 86 files and 7 checks out of date with nothing verifying
-   it. Both are the same disease: an assertion nobody checks. appfactory has **no CI of its
-   own** — adding one that runs `selftest.sh`, verifies the manifest, and greps the docs for
-   a stale count would close all three.
+1. **A check that docs match the corpus.** `12 checks` survived in six places against 19 on
+   disk. `manifest.sha256` drifted `86 files` and `7 checks` behind with nothing verifying
+   it. Both are the same disease: an assertion nobody checks. **Done** —
+   `scripts/repo-check.sh` and `.github/workflows/ci.yml` now close all three.
 2. **Verify `manifest.sha256`, or delete it.** Nothing reads it today; `scaffold.py` walks
    the runtime tree directly. An unverified digest manifest is worse than none, because it
    looks like tamper-evidence.

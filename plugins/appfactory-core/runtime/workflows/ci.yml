@@ -194,7 +194,7 @@ jobs:
           path: |
             app/build/reports/lint-results-*.html
             app/build/reports/lint-results-*.xml
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
 
       # Room writes app/schemas/*.json under exportSchema = true, but it writes them
@@ -205,13 +205,18 @@ jobs:
       # file is to take it out of a build. Hand-writing a file that must byte-match
       # generated output is precisely the failure that produced a fabricated
       # font_certs.xml and killed an app at launch through eleven green builds.
+      #
+      # GUARDED rather than set to if-no-files-found: warn. A project with no Room
+      # database legitimately has no schemas, and check 180 requires every upload to
+      # fail on an empty match -- so the honest form is "do not run this step unless
+      # there is something to upload", not "upload nothing and shrug".
       - name: Upload generated Room schemas
-        if: always()
+        if: always() && hashFiles('app/schemas/**') != ''
         uses: actions/upload-artifact@v4
         with:
           name: room-schemas-${{ steps.names.outputs.sha }}
           path: app/schemas/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
 
       - name: Upload unit test report
@@ -220,7 +225,7 @@ jobs:
         with:
           name: unit-tests-${{ steps.names.outputs.sha }}
           path: app/build/reports/tests/testDebugUnitTest/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
 
       - name: Summary

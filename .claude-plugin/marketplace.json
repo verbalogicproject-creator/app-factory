@@ -9,34 +9,10 @@
   "plugins": [
     {
       "name": "appfactory-core",
-      "description": "MANDATORY base for the other three. Owns the runtime vendored into your repo (preflight checks with fixtures, the stage ledger, the secrets vault), and the guard hooks that make three documented repeat failures structurally impossible: an unpinned CI run lookup, a push that skipped preflight, and writing signing material into the tree.",
+      "description": "The Android build-and-verify pipeline. Owns the runtime vendored into your repo (preflight checks with fixtures, the stage ledger, the secrets vault), and the guard hooks that make three documented repeat failures structurally impossible: an unpinned CI run lookup, a push that skipped preflight, and writing signing material into the tree.",
       "category": "development",
       "author": { "name": "Eyal Nof", "email": "verbalogic.project@gmail.com" },
       "source": "./plugins/appfactory-core",
-      "license": "Apache-2.0"
-    },
-    {
-      "name": "appfactory-plan",
-      "description": "Interview to app contract to walking skeleton. Asks the irreversible questions first — applicationId, signing certificate, persisted schema version — because those three cannot be changed after the first user installs. Anything it has to guess is written to UNVERIFIED.md and stays flagged until a human confirms it. Requires appfactory-core.",
-      "category": "development",
-      "author": { "name": "Eyal Nof", "email": "verbalogic.project@gmail.com" },
-      "source": "./plugins/appfactory-plan",
-      "license": "Apache-2.0"
-    },
-    {
-      "name": "appfactory-ui",
-      "description": "Design contract to reviewable prototype to Compose. Publishes every screen plus the navigation graph as one page you approve on your phone before any Kotlin exists, and never emits a downloadable-font provider — a fabricated font certificate once killed an app at launch through eleven green builds. Requires appfactory-core.",
-      "category": "design",
-      "author": { "name": "Eyal Nof", "email": "verbalogic.project@gmail.com" },
-      "source": "./plugins/appfactory-ui",
-      "license": "Apache-2.0"
-    },
-    {
-      "name": "appfactory-build",
-      "description": "The CI-is-the-compiler loop: preflight, push, read the failure, cut a signed release, get it onto a device, retrieve and retrace a crash. Verifies the published APK's signing certificate against a committed pin, because a key that changes between releases orphans every installed device permanently. Requires appfactory-core.",
-      "category": "deployment",
-      "author": { "name": "Eyal Nof", "email": "verbalogic.project@gmail.com" },
-      "source": "./plugins/appfactory-build",
       "license": "Apache-2.0"
     }
   ]

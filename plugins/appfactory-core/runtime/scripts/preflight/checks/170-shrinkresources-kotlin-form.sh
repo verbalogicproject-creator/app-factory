@@ -19,15 +19,28 @@ ROOT="$(af_root "${1:-}")"
 # Case-sensitive is exact: isShrinkResources contains ShrinkResources (capital S),
 # never shrinkResources (lowercase s), so \bshrinkResources\b matches only the
 # Groovy form without a negative lookbehind.
+#
+# COMMENTS ARE STRIPPED FIRST, and that is not fussiness. The scaffold's own
+# app/build.gradle.kts carries a comment explaining this exact trap --
+#   // Kotlin DSL name. The Groovy form is `shrinkResources`, and using it ...
+# -- so the check fired on the documentation of the bug it targets, in every project
+# this pipeline generated. A regex over source reads comments too, and this corpus has
+# now been bitten by that twice: the other was check 020, where a comment naming the
+# proguardFiles call opened a match that swallowed the next quoted string.
+#
+# Comment TEXT is blanked rather than the lines deleted, so the reported line number
+# still points at the real source line.
 found=0
 while IFS= read -r file; do
     [ -z "$file" ] && continue
-    if grep -qE '\bshrinkResources\b' "$file"; then
-        line="$(grep -nE '\bshrinkResources\b' "$file" | head -1)"
-        fail "$(realpath --relative-to="$ROOT" "$file"): Groovy-form shrinkResources in a Kotlin DSL script; use isShrinkResources ($line)"
+    stripped="$(perl -0777 -pe 's{/\*.*?\*/}{}gs; s{//[^\n]*}{}g' "$file" 2>/dev/null)"
+    if printf '%s' "$stripped" | grep -qE '\bshrinkResources\b'; then
+        n="$(printf '%s' "$stripped" | grep -nE '\bshrinkResources\b' | head -1 | cut -d: -f1)"
+        text="$(sed -n "${n}p" "$file" | sed 's/^[[:space:]]*//')"
+        fail "$(realpath --relative-to="$ROOT" "$file"): Groovy-form shrinkResources in a Kotlin DSL script; use isShrinkResources ($n: $text)"
         found=1
     fi
-done < <(find "$ROOT" -type f -name '*.gradle.kts' 2>/dev/null)
+done < <(af_project_files "$ROOT" '*.gradle.kts')
 
 [ "$found" -eq 0 ] && pass "$TITLE"
 af_exit

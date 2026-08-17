@@ -128,5 +128,8 @@ jobs:
           path: |
             emulator-out/**
             app/build/reports/androidTests/**
-          if-no-files-found: warn
+          # error, not warn: this step runs only when the emulator rung has something
+          # to report, and an empty upload here means the artifacts a failure
+          # investigation depends on were never written. Check 180 owns the rule.
+          if-no-files-found: error
           retention-days: 14

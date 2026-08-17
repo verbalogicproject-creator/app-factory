@@ -20,8 +20,8 @@ ebc5d5c044611a30f570859eabf0a4d534cc500abb1fb94963a5fca28f4abeda  ./scripts/pref
 d1fb6512966d948c0a726f6cce3208c3901dec408b61529c668ef2f0ff2f5162  ./scripts/preflight/checks/130-migration-column-defaults.sh
 8dd2630f0f224967c15eeb96113c5765dd6ea0dd26d17681353477a5295089e1  ./scripts/preflight/checks/140-target-sdk-submittable.sh
 1a54f4f3062611f3b7cb481c9378593fdb8d93199bb615012059622acca0e830  ./scripts/preflight/checks/150-jnilibs-legacy-packaging.sh
-b2195be00186016578f52cafa185d264fa4c5caca67e92259e04b6c4aede1c30  ./scripts/preflight/checks/160-kotlin-dsl-java-shadow.sh
-dc2a5c4d3191b8e463f79aafbf60aa6ad965226791e95086c5a6e0fc6acdafd3  ./scripts/preflight/checks/170-shrinkresources-kotlin-form.sh
+59be6789fa2af9fe3fe821929aab9f601ca47caec4e9aaee328d6cd00eff9dce  ./scripts/preflight/checks/160-kotlin-dsl-java-shadow.sh
+e3802fe001c99729c02de216a88c99de69db79b76d93dd9f2cd001a93bb2288e  ./scripts/preflight/checks/170-shrinkresources-kotlin-form.sh
 5f77c1dff09fdf983e5e20a51d47f2d38b77cecc0c99944b6707cdf67b3097a5  ./scripts/preflight/checks/180-upload-artifact-fail-on-empty.sh
 7574fd8e6a2a99ee2d309460d965c6a734d21b0f79d69eb5d184334296638455  ./scripts/preflight/checks/190-native-libs-resolve.sh
 7fbc2c0e171f3e00717d0c200edcf1fa4b729d9ad467b702d0be2ad4b0ef4a9c  ./scripts/preflight/checks/200-androidtest-variant-coupling.sh
@@ -180,7 +180,7 @@ c054a8275a51312e22ef994de2e0e312c6a42020a64baa57173037ed83b01076  ./scripts/pref
 98dfca1f732e223b9380238a7f9f1f8aa2dd5875eb93eae213e1e9d59093676d  ./scripts/preflight/fixtures/200-androidtest-variant-coupling/fixed/app/src/androidTest/java/com/example/ProposalTest.kt
 5b11c2bde0460c96f0801831d246fecb4fcf9e6cde45e2a401f07b59d034fee2  ./scripts/preflight/fixtures/200-androidtest-variant-coupling/fixed/app/src/debug/java/com/example/debug/DebugFixtures.kt
 c054a8275a51312e22ef994de2e0e312c6a42020a64baa57173037ed83b01076  ./scripts/preflight/fixtures/200-androidtest-variant-coupling/fixed/app/src/main/java/com/example/Proposal.kt
-3fc716f1680dbaf830b912b95c2f6007216cc5321caffdef9434780fa5fba5d4  ./scripts/preflight/lib.sh
+0fecebf80a56fa3462448fdc5f4b1d70f6f033b68ee18a97674438bd1c2421b1  ./scripts/preflight/lib.sh
 56449e7dc9105cae81c2221053e2c37343bc4905d3d3021a6e85b06031aa8072  ./scripts/preflight/selftest.sh
 b039c133189cfd45da49a60109ffa4c57c16b8a6337fa4ad1a25cf9986bceb87  ./scripts/verify-apk-native-linkage.sh
 5527251585f0543ac512629288b91ff44923cbc917b02bdc425c4d980b4a7b21  ./scripts/verify-apk.sh
@@ -212,7 +212,7 @@ bdecf875b6868cbcbd36a1f85eedf0832f358ff28092c5797ed645f7edce77d9  ./templates/gr
 e74a0dec6ee28d1f7239688be6c6f9910dfb0da1e4d5678c0c89ff479d9694c7  ./templates/gradle/settings.gradle.kts
 2ed5b44ac67a45d0e0245a6026e1cef2feaf5f4bf3dbf8a3295dc8a416b57d55  ./versions/2026-08-api36.toml
 a05d5346238ab3f17c4e2b1e18f03481846a76a363a5a3d6501a1fe7cf4e9ab4  ./versions/2026-08.toml
-5dead20c04ad6642a0e0a2e2791961d499bfbed7bc30f37af7b8dcad69aba522  ./workflows/ci.yml
-3e6d4014f32a15804fbe7042875f4ce81837dbd3545b5fcf5355e6692d20d886  ./workflows/emulator.yml
+0ea5e0f042ec750159bf92489e25571e4c4f7c8d37dca9a68fa7200bf958c2fc  ./workflows/ci.yml
+d4c538692f22a1ed3c0bdc10b62c48ff91250dab0eafe4b6d7a3aa99c21f7d60  ./workflows/emulator.yml
 92fb81b0a8a26942a1d28c4fea030607331ea7041c9c8c0922c295196850ee68  ./workflows/release.yml
 0ee4029faf8bc97f2ac93955a7851dbf90ef5e70d4951f313298cc34b0f56aa1  ./workflows/secret-doctor.yml

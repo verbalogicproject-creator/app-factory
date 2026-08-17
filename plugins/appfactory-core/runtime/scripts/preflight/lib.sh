@@ -78,4 +78,31 @@ af_src_dirs() {
     printf '%s\n' "${dirs[@]}"
 }
 
+# Files belonging to the PROJECT, excluding generated output and the vendored check
+# corpus's own fixtures.
+#
+#   while IFS= read -r f; do ... done < <(af_project_files "$ROOT" '*.gradle.kts')
+#
+# THE CORPUS MUST NOT SCAN ITSELF. Every scaffolded app carries
+# scripts/preflight/fixtures/, which are deliberately-broken sample projects. A check
+# that walks the whole tree finds them, and a freshly generated app then opens with a
+# wall of false failures -- teaching a first-run user that red is normal, which is how
+# a check corpus dies.
+#
+# Checks 010 and 190 each learned this separately and wrote their own exclusion. 160
+# and 170 did not, and a generated project failed both, on their own vendored fixtures,
+# for as long as that went unnoticed. This exists so the next check to need it does not
+# have to remember.
+#
+# THE EXCLUSION IS ANCHORED to "$root/scripts/preflight/fixtures/", never a substring
+# matching /preflight/fixtures/ anywhere. The selftest points a check AT a fixture
+# directory, so a substring exclusion swallows the very file under test and the check
+# reports clean -- the exact silent pass this corpus exists to prevent.
+af_project_files() {
+    local root="$1" pattern="$2"
+    find "$root" -type f -name "$pattern" 2>/dev/null \
+        | grep -v '/build/' \
+        | grep -Fv "$root/scripts/preflight/fixtures/"
+}
+
 af_exit() { [ "$AF_FAILURES" -eq 0 ] && exit 0 || exit 1; }

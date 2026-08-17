@@ -1,0 +1,89 @@
+name: ci
+
+# appfactory checking ITSELF.
+#
+# This repository shipped a verification pipeline and had no verification of its own,
+# and three failures followed directly from that:
+#
+#   1. "12 checks" survived in six places while 19 were on disk
+#   2. runtime/manifest.sha256 drifted 86 files and 7 checks behind, unread by anything
+#   3. the marketplace advertised an interview, a contract and UNVERIFIED.md for a
+#      plugin that was a manifest and nothing else
+#
+# All three are one disease -- an assertion nobody checks -- and all three were found by
+# a human reading files, which is the most expensive detector available.
+#
+# THE ECONOMICS ARE THE SAME ARGUMENT THIS REPO MAKES ABOUT ANDROID BUILDS. The whole
+# job is seconds, needs no JDK, no Android SDK and no network, and it runs on every
+# push. There is no cheaper rung to demote anything to.
+#
+# Deliberately NOT a matrix, and deliberately not scheduled: nothing here depends on a
+# toolchain version or on the passage of time.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+# The default token is read-only here. This job publishes nothing, comments nowhere and
+# touches no external service; it reads files and exits.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repo-check:
+    name: Repo self-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # PyYAML is the only dependency, and it is preinstalled on ubuntu-latest. Asserted
+      # rather than assumed: a missing import would make the YAML check silently skip,
+      # and a check that reports success without verifying anything is worse than no
+      # check -- it ends the investigation. That sentence is this corpus's founding
+      # lesson and it applies to its own CI.
+      - name: Assert the checker's own dependencies
+        run: |
+          python3 -c "import yaml, json, hashlib; print('deps ok')"
+          command -v sha256sum >/dev/null || { echo "::error::sha256sum absent"; exit 1; }
+
+      - name: Repo self-check
+        run: bash scripts/repo-check.sh
+
+      # The corpus verifies itself against its fixtures. repo-check.sh already runs this,
+      # but it is repeated as its own step so a failure is legible in the job list
+      # without opening a log -- this is the check that matters most, and burying it
+      # inside a composite step would make the expensive signal cheap to miss.
+      - name: Preflight corpus selftest
+        run: bash plugins/appfactory-core/runtime/scripts/preflight/selftest.sh
+
+      # The generated project must pass the corpus the generator ships. The targetSdk
+      # incident was exactly this: the bootstrap skill told an agent to scaffold with a
+      # value check 140 exists to reject, so the pipeline's own default failed the
+      # pipeline's own gate. A first-run user would have learned that a red check is
+      # normal, which is how a corpus dies.
+      - name: Scaffold a project and run the corpus against it
+        run: |
+          TARGET="$(mktemp -d)/demo"
+          python3 plugins/appfactory-core/runtime/bin/scaffold.py "$TARGET" \
+            --application-id com.example.democheck \
+            --app-name "Demo Check"
+          echo "--- generated at $TARGET ---"
+          bash "$TARGET/scripts/preflight.sh" "$TARGET"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### appfactory self-check"
+            echo ""
+            echo "- checks in corpus: **$(find plugins/appfactory-core/runtime/scripts/preflight/checks -name '[0-9][0-9][0-9]-*.sh' | wc -l)**"
+            echo "- runtime files under digest: **$(wc -l < plugins/appfactory-core/runtime/manifest.sha256)**"
+            echo "- plugins advertised: **$(python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))")**"
+          } >> "$GITHUB_STEP_SUMMARY"

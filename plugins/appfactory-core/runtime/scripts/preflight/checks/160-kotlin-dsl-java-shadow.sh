@@ -38,7 +38,7 @@ while IFS= read -r file; do
         done <<< "$matches"
         found=1
     fi
-done < <(find "$ROOT" -type f -name '*.gradle.kts' 2>/dev/null)
+done < <(af_project_files "$ROOT" '*.gradle.kts')
 
 [ "$found" -eq 0 ] && pass "$TITLE"
 af_exit
