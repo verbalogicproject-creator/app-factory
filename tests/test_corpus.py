@@ -44,3 +44,36 @@ def test_selftest_reports_every_check_verified():
     )
     assert match, f"expected summary line not found in:\n{r.stdout}"
     assert int(match.group(1)) == len(ids)
+
+
+# ── the mode is registered where it must be ───────────────────────────────────
+
+def test_hooks_json_registers_the_mode_carrier():
+    """A UserPromptSubmit hook is the only mechanism that survives both a compaction and
+    a restart. If this registration is lost, the mode silently stops being a mode."""
+    import json
+    from tests.conftest import PLUGIN
+    doc = json.load(open(PLUGIN / "hooks" / "hooks.json"))
+    hooks = doc["hooks"]
+    assert "UserPromptSubmit" in hooks, "the per-turn anchor is gone"
+    matchers = {g.get("matcher") for g in hooks["SessionStart"]}
+    assert "compact" in matchers, (
+        "SessionStart(compact) is the only context-injecting event after a compaction"
+    )
+    # The guards must not have been displaced by the mode.
+    pre = json.dumps(hooks["PreToolUse"])
+    for guard in ("guard_run_list", "guard_push_preflight", "guard_secret_material"):
+        assert guard in pre, f"{guard} is no longer registered"
+
+
+def test_every_registered_hook_command_exists():
+    """A hook pointing at a missing script fails silently on every single turn."""
+    import json, re
+    from tests.conftest import PLUGIN
+    doc = json.load(open(PLUGIN / "hooks" / "hooks.json"))
+    for event, groups in doc["hooks"].items():
+        for group in groups:
+            for hook in group["hooks"]:
+                m = re.search(r"hooks/([A-Za-z0-9_]+\.py)", hook["command"])
+                assert m, hook["command"]
+                assert (PLUGIN / "hooks" / m.group(1)).is_file(), (event, m.group(1))
