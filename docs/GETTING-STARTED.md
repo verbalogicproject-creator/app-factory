@@ -39,7 +39,7 @@ Everything downstream is cheap to change. These are not.
 validates `applicationId` against the package-name regex and `minSdk >= 26` *before*
 writing anything.
 
-Then `scripts/preflight.sh` runs 20 checks in roughly two seconds. This matters because
+Then `scripts/preflight.sh` runs 21 checks in roughly two seconds. This matters because
 a CI round trip is 2–5 minutes; the entire point of the corpus is that a category of
 mistake never costs that.
 
@@ -87,9 +87,11 @@ were *not* run.
   release/cert.sha256          the pinned signing identity (public, safe to commit)
   preflight-ignore             suppressions, each requiring a written reason
   bin/                         vendored tools
+  contract/                    planned — decisions from the `plan` skill's interview
+  receipts/                    planned — one JSON receipt per verification-ladder stage
 scripts/
   preflight.sh                 the runner
-  preflight/checks/            20 checks
+  preflight/checks/            21 checks
   preflight/fixtures/          a reproduction of every bug the checks catch
   local-toolchain.sh           doctor: can this machine build locally, and if not why
 .github/workflows/
@@ -98,6 +100,47 @@ scripts/
   emulator.yml                 instrumented tests + release launch smoke
   secret-doctor.yml            the canary
 ```
+
+## The `web-shell` kind
+
+`scaffold.py` has a second kind besides the default Compose walking skeleton:
+
+```
+scaffold.py <target> --application-id com.example.app --app-name "My App" \
+    --kind web-shell --web-dir dist/ --deeplink-scheme myapp
+```
+
+`web-shell` hosts a **built** web bundle (`--web-dir` must contain `index.html` --
+point it at `dist/`, never `src/`) inside an AndroidX WebView, and exposes a
+127.0.0.1-only command/observe HTTP surface a harness can drive:
+
+| Route | What it does |
+|---|---|
+| `POST /__sag/command` | body: a command JSON object, or an array of them. Delivered to the page as `window.__sagNative.deliver({id, command})`; the page answers via `AndroidBridge.postResult({id, result})`. Waits up to 3s; a single command that times out responds `504 {"error":"no page answered"}` |
+| `GET /__sag/observe?tail=N` | the last `N` JSONL lines the page reported via `AndroidBridge.observe(json)`, as a JSON array |
+| `GET /__sag/health` | `{"pkg","version","sha","pageLoaded"}` |
+
+A foreground service (`mediaPlayback` type) owns the server's lifetime so it
+survives Android's background-execution limits; a deep link
+(`myapp://...`) reaches the page as `window.__sagNative.onIntent(uri)`.
+
+Rebuilding the web app does not require re-scaffolding: run
+
+```
+bash scripts/sync-web.sh dist/
+```
+
+to refresh `app/src/main/assets/web/` from a freshly built bundle (it refuses if
+`dist/index.html` is missing, so it cannot be pointed at a source tree by mistake).
+
+A contract (`contract.py init --kind web-shell --web-dir ... --deeplink-scheme
+...`) can supply all of the above instead of repeating them on the command line:
+
+```
+scaffold.py <target> --contract .appfactory/contract
+```
+
+Any flag given explicitly on the command line still wins over the contract.
 
 ## Day-to-day
 

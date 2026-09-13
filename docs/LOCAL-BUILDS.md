@@ -258,11 +258,17 @@ adb install -r -d -t app/build/outputs/apk/androidTest/debug/app-debug-androidTe
 for k in window_animation_scale transition_animation_scale animator_duration_scale; do
     adb shell settings put global $k 0
 done
-adb shell am instrument -w <applicationId>.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w <applicationId>.debug.test/androidx.test.runner.AndroidJUnitRunner
 for k in window_animation_scale transition_animation_scale animator_duration_scale; do
     adb shell settings put global $k 1
 done
 ```
+
+The instrumentation package is `<applicationId>.debug.test`, not `<applicationId>.test`
+— the debug build has `applicationIdSuffix = ".debug"`, and the test APK's package
+carries that suffix plus `.test`. A scripted form of this sequence
+(`scripts/local-build.sh instrumented`) is planned in v1.0.0; today it is copy-paste
+shell.
 
 Five things cost real time to learn:
 

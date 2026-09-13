@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "appfactory-core",
-      "description": "The Android build-and-verify pipeline. Owns the runtime vendored into your repo (preflight checks with fixtures, the stage ledger, the secrets vault), and the guard hooks that make three documented repeat failures structurally impossible: an unpinned CI run lookup, a push that skipped preflight, and writing signing material into the tree.",
+      "description": "The Android build-and-verify pipeline. Owns the runtime vendored into your repo (preflight checks with fixtures, the secrets vault, and per-stage receipts under .appfactory/receipts/, planned), and the guard hooks that make three documented repeat failures structurally impossible: an unpinned CI run lookup, a push that skipped preflight, and writing signing material into the tree.",
       "category": "development",
       "author": { "name": "Eyal Nof", "email": "verbalogic.project@gmail.com" },
       "source": "./plugins/appfactory-core",

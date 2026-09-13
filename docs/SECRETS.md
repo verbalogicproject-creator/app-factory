@@ -121,6 +121,60 @@ published — before being trusted.
 Android SDK. An earlier version read `META-INF/*.RSA`, which is dead code: modern AGP
 signs v2/v3 only, and that path would have silently found nothing.
 
+## Play service-account flow (runtime secret, not build-time)
+
+Automated Play Store uploads (Gradle Play Publisher) need a Google Cloud service
+account's JSON key. It is a credential, not a build-time asset like the keystore, but
+it deserves the same "never touches a working tree" discipline:
+
+1. Play Console → **Setup → API access** → link/create a Google Cloud project →
+   create a service account there, grant it the Play API role, and download its
+   **JSON key**.
+2. Vault it without it ever landing as a file in this repo:
+   ```
+   pass_manager.py set-file <profile> --name PLAY_SERVICE_ACCOUNT_JSON --file sa.json
+   ```
+3. Push it to GitHub alongside the signing trio:
+   ```
+   pass_manager.py sync <profile> --repo <owner/name>
+   ```
+4. Prove the value (not just the name) arrived:
+   ```
+   pass_manager.py canary --repo <owner/name> --profile <profile>
+   ```
+
+`release.yml` (owned by another lane) maps the GitHub secret `PLAY_SERVICE_ACCOUNT_JSON`
+onto the environment variable Gradle Play Publisher actually reads,
+`ANDROID_PUBLISHER_CREDENTIALS` — the plugin wants the JSON **contents**, not a path.
+
+**Never write the JSON key into any tree**, including a scratch or temp directory
+inside this repo. `guard_secret_material` blocks it outright by name
+(`*service-account*.json`, `*-sa.json`) and by content (`"private_key_id"`), the same
+guard that blocks a loose keystore.
+
+**The first AAB upload for a brand-new package is manual**, done once in Play Console.
+The Play Publishing API can create *releases* but cannot create the *app listing*
+itself, so there is no way to automate the very first upload — every automated release
+after that one works normally.
+
+### Pin policy for actions that touch a credential
+
+Any third-party GitHub Action that receives a credential (a signing key, this
+service-account JSON, a publish token) is pinned to a **full commit SHA**, with a
+trailing `# vX.Y.Z` comment for humans:
+
+```yaml
+- uses: r0adkll/upload-google-play@abcdef0123456789abcdef0123456789abcdef01  # v1.1.3
+```
+
+A tag is mutable — its owner can repoint it to different code without changing the
+version string you see. A commit SHA cannot be silently swapped underneath you.
+
+First-party actions (`actions/*`) and the maintainers with a strong track record on
+this exact axis (`gradle/actions/*`, `reactivecircus/*`) stay on major version tags
+(`actions/checkout@v4`) — the credential-handling risk this policy targets does not
+apply the same way to Actions' and Google's own published actions.
+
 ## The failure this all prevents
 
 An ancestor project exported signing credentials as environment variables from its

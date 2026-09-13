@@ -85,6 +85,10 @@ that is wrong compiles, ships, and fails on someone else's device.**
 exists — a walking skeleton that traverses the entire pipeline first, so that every
 later failure is attributable to app code rather than to the pipeline.
 
+`scaffold.py` generates two kinds: `compose` (default, the skeleton above) and
+`web-shell` (a Compose host for a built web bundle, with a 127.0.0.1-only
+command/observe HTTP surface — see [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md#the-web-shell-kind)).
+
 It runs in this order, and the order is the point:
 
 1. **Immutable decisions first.** Two things about an Android app have **no migration
@@ -96,7 +100,7 @@ It runs in this order, and the order is the point:
    sensitive rather than immutable**: it *can* change, which is what migrations are
    for. What cannot be undone is that data already sits on devices, so a wrong
    migration destroys it. A different risk, and worth a different word.
-2. **Generate and verify locally** — 20 static checks, ~2 seconds.
+2. **Generate and verify locally** — 21 static checks, ~2 seconds.
 3. **Key into an encrypted vault, with a blocking backup step.** Losing a release key
    means you cannot ever update the installed cohort. There is no recovery.
 4. **Push secrets and prove they arrived with a canary.** GitHub never returns a secret
@@ -110,13 +114,14 @@ Each rung catches something no cheaper rung can. Cost is why the order matters.
 | Rung | Cost | Catches uniquely |
 |---|---|---|
 | authoring hooks | ~0.2s | unpinned run lookups, secret material, pushing without preflight |
-| static preflight | ~2s | 20 check classes |
+| static preflight | ~2s | 21 check classes |
 | **local compile** | 13–21s | types, Compose compiler, KSP/Hilt graph |
 | **local unit tests** | ~45s | logic, serialization, Room migration |
 | **local lint** | ~75s | patterns that compile and fail later |
 | **local R8 / minify** | ~2m20s | missing keep rules |
 | CI compile + test + R8 | 2–4 min | **the same, on x86_64, on a machine that is not yours** |
 | **emulator** | 6–12 min | **launch crashes** — the first rung that answers "does it run" |
+| local instrumented (physical device over loopback adb) | ~1 min | real ABI, real OEM behaviour |
 | physical device | manual | OEM behaviour, and the two worst bugs found here |
 
 **A rung that has never been observed failing is not a rung.** Every one of these has
@@ -127,7 +132,7 @@ commit messages and a README table before anyone tested it — and it did not, b
 
 ## The check corpus
 
-20 checks, each shipping a fixture that reproduces its bug.
+21 checks, each shipping a fixture that reproduces its bug.
 
 **`preflight.sh` refuses to run a check that has no fixture directory.** Not a
 convention — the runner will not execute it. New checks are written fixture-first, and
@@ -147,24 +152,23 @@ on every run. Silent suppression is how check corpora die.
 
 ## Plugins
 
-| Plugin | Status |
+One plugin, `appfactory-core`, with four skills:
+
+| Skill | Status |
 |---|---|
-| **`appfactory-core`** | complete and exercised — runtime, vault, state, hooks |
-| `appfactory-plan` | scaffolded, empty |
-| `appfactory-ui` | scaffolded, empty |
-| `appfactory-build` | scaffolded, empty |
+| `bootstrap` | present — walking-skeleton scaffold, described above |
+| `plan` | planned in v1.0.0, not yet present — interview → `.appfactory/contract/` |
+| `verify` | planned in v1.0.0, not yet present — the local ladder, preflight through release |
+| `release` | planned in v1.0.0, not yet present — tag → CI → signed APK/AAB → cert pin → Play internal track |
 
-Three are empty **on purpose.** They are being extracted from the act of building a
-real app rather than designed in advance, because a template hardened against imagined
-problems is hardened against the wrong ones. The corpus grew 6 → 20 checks over the
-course of building one app; every one of those six came from a failure that actually
-happened.
-
-There are four plugins rather than three for a mechanical reason:
-`${CLAUDE_PLUGIN_ROOT}` is per-plugin, with no cross-plugin path resolution and no
-dependency system. Shared runtime therefore cannot live in one plugin and be called
-from another — it must be **vendored into the consuming repo** by the plugin that owns
-it.
+The repository previously advertised three additional plugins
+(`appfactory-plan`, `appfactory-ui`, `appfactory-build`) as manifest-only stubs. They
+have been deleted rather than built out: `${CLAUDE_PLUGIN_ROOT}` is per-plugin, with no
+cross-plugin path resolution and no dependency system, so shared runtime cannot live in
+one plugin and be called from another — it must be vendored into the consuming repo by
+the plugin that owns it. That made a multi-plugin split cost real duplication for no
+independent value, so the work each stub described is being built as skills inside
+`appfactory-core` instead.
 
 ## Secrets
 
@@ -194,11 +198,16 @@ tested Room migration and a certificate pinned and verified before each publish.
 was built on, closing a gap this repo had documented as open since the start. See
 [`docs/LOCAL-BUILDS.md`](docs/LOCAL-BUILDS.md).
 
-**Not proven:** that `bootstrap` reproduces the conformance repo byte-for-byte; the
-three empty plugins; anything about multi-module projects. The check corpus is
-regex-shaped and derived from single-module Compose apps, and is advertised as such.
-On local builds specifically: no local emulator (needs an x86_64 image and KVM), no
-local signing, and a toolchain assembled once, on one device, against one repo.
+**Not proven:** the `plan`, `verify` and `release` skills — planned in v1.0.0, not yet
+present; anything about multi-module projects. The check corpus is regex-shaped and
+derived from single-module Compose apps, and is advertised as such. On local builds
+specifically: no local emulator (needs an x86_64 image and KVM), no local signing, and a
+toolchain assembled once, on one device, against one repo.
+
+**Historical:** [`appfactory-conformance`](https://github.com/verbalogicproject-creator/appfactory-conformance)
+was a separate repo (v0.0.2) used to check `bootstrap`'s scaffold against a
+byte-for-byte reproduction. It is frozen; the factory's own CI building its scaffolded
+demo app is planned to supersede it in v1.0.0.
 
 **Top maintenance risk:** version rot. AGP, Kotlin, KSP and Compose form a tight
 compatibility lattice and runner images move underneath it. Version matrices are dated

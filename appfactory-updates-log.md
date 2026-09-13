@@ -12,7 +12,7 @@ re-derived at apply time.
 Found during: Localmind Amber seven-surface shell, Aug 2026, aarch64 device
 (NX779J / Android 15) with the local toolchain.
 
-**Running tally.** 15 entries — 1 applied (10), 14 open.
+**Running tally.** 15 entries — 1 applied (10), 1 closed (11), 13 open.
 
 **One more, uncounted, found while applying 10:** `CHECKS.md` opened with *"Twelve static
 checks"* over a table of twelve, and the corpus had **eighteen** — 130 through 180 were
@@ -468,7 +468,7 @@ would have caught it, and that is what replaced it.
 
 ---
 
-## 15. A test that renders a different composition than production is not a test of production
+## 14. A test that renders a different composition than production is not a test of production
 
 **Status:** OPEN
 **Where:** wherever the corpus discusses UI testing, next to entries 5 and 13
@@ -527,6 +527,8 @@ structural fix over the disciplinary one.
 ---
 
 ## 15. A Compose UI assertion that scrolls BACKWARDS passes on new APIs and fails on old ones
+
+**Status:** OPEN
 
 **Observed.** `ExpertDetailRetrievalTest` asserted a quotation, then its provenance, then
 scrolled back UP to check a status line above both. 118/118 green on API 36; on API 29 the

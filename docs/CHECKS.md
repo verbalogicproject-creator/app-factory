@@ -1,6 +1,6 @@
 # The check corpus
 
-Nineteen static checks, roughly two seconds, run before `git push` is allowed to proceed.
+Twenty-one static checks, roughly two seconds, run before `git push` is allowed to proceed.
 
 Every one exists because a specific failure happened and cost a CI round trip or worse.
 A check with no incident behind it is a guess, and is labelled as one.
@@ -29,6 +29,7 @@ A check with no incident behind it is a guess, and is labelled as one.
 | 180 | `actions/upload-artifact` without `if-no-files-found: error` | a release that published nothing and said success |
 | 190 | a packaged `.so` whose `DT_NEEDED` does not resolve | **`dlopen failed: library "libomp.so" not found`, on a device, everything else green** |
 | 200 | an `androidTest` source reading a build-type-only source set | **a fixture in `src/debug` pinned the whole instrumented suite to one build type — and retired a verification rung on false evidence** |
+| 210 | a Compose `Activity` with no `enableEdgeToEdge()` at targetSdk 35+ | ANTICIPATED from the API 36 platform change, not yet an observed incident |
 
 Three of those deserve expansion, because they are the ones that teach something.
 

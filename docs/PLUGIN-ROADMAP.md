@@ -1,167 +1,46 @@
-# Plugin roadmap — draft for near-future implementation
+# Plugin roadmap — executed / superseded
 
-**Status: draft.** Nothing here is built. It exists to be argued with before code is
-written, because the cheapest version of this work is the one that deletes a plugin
-rather than implements it.
+**Status: executed / superseded.** This document originally argued through the
+plugin-split question. That argument is settled; the decisions below record what was
+decided and what was actually done, so the reasoning stays findable without the
+now-stale in-progress framing.
 
----
+## What was decided
 
-## The situation today
+One plugin, `appfactory-core`, not four. Four skills inside it:
 
-| Plugin | Files | Reality |
-|---|---|---|
-| `appfactory-core` | 216 | Real. One skill (`bootstrap`), guard hooks, the vendored runtime |
-| `appfactory-plan` | 1 | `plugin.json` and nothing else |
-| `appfactory-ui` | 1 | `plugin.json` and nothing else |
-| `appfactory-build` | 1 | `plugin.json` and nothing else |
+- `bootstrap` — present.
+- `plan` — interview → `.appfactory/contract/`. Planned in v1.0.0, not yet present.
+- `verify` — the local ladder: preflight → compile → unit → lint → debug APK →
+  verify-apk → on-device instrumented over loopback adb → release. Planned in v1.0.0,
+  not yet present.
+- `release` — tag → CI → signed APK/AAB → cert pin → Play internal track via Gradle
+  Play Publisher. Planned in v1.0.0, not yet present.
 
-`marketplace.json` advertises detailed behaviour for all four. Install `appfactory-plan`
-today and you get an empty manifest — but the listing promises an interview, a contract,
-irreversible-decision ordering, and `UNVERIFIED.md`. That is the most damaging kind of
-documentation error in this repository, because unlike a stale check count it is
-discovered by a user, at first contact, on a promise.
+This supersedes this document's earlier "Decision 2" (three plugins: fold `-build` into
+core, keep `-plan` and `-ui` separate). The one-plugin, four-skill shape is the plan of
+record; see the v1.0.0 plan of record for the full reasoning.
 
----
+## What was done
 
-## Decision 1 — stop advertising what does not exist
+- `appfactory-plan`, `appfactory-ui`, `appfactory-build` — the three manifest-only stub
+  plugins — are deleted (`git rm -r`), not implemented. Their manifests were never real
+  and describing them as "scaffolded" was the documentation error this roadmap existed
+  to fix.
+- Decision 1 (remove stub entries from `marketplace.json`) was already done in
+  `8f06ea8` and confirmed still in place: `marketplace.json` lists only
+  `appfactory-core`.
 
-**Do this before any implementation work.** It costs minutes and it is not conditional on
-the rest of this document.
+## Cross-cutting work
 
-Options, in order of preference:
+1. **A check that docs match the corpus.** Done — `scripts/repo-check.sh` and
+   `.github/workflows/ci.yml`.
+2. **Verify `manifest.sha256`.** Done — `scripts/repo-check.sh` verifies the digest.
+3. **A fixture asserting the generator's own output passes.** Still open; not part of
+   this pass.
 
-1. **Remove the three entries from `marketplace.json`.** Re-add each when it is real. The
-   listing then describes the product rather than the intention.
-2. Keep them listed but prefix each description with `PLANNED — not yet implemented.`
-   Weaker: a listing is a shop window, and a shelf labelled "coming soon" still occupies
-   the shelf.
+## Where the plan lives
 
-Option 1 is recommended. Nothing depends on the entries; `appfactory-core` is standalone.
-
----
-
-## Decision 2 — is a four-plugin split right at all?
-
-Worth asking before building three plugins. The honest case against:
-
-- All three "Require appfactory-core". Three packages that cannot function without a
-  fourth is not modularity, it is a dependency chain with no independent value.
-- `appfactory-core` already vendors the entire runtime — the checks, the fixtures, the
-  workflow templates, the scaffold. `appfactory-build` would own *a skill describing how
-  to drive what core already ships*, not any capability of its own.
-- `bootstrap` currently lives in core and already spans what `-plan` and `-build` claim.
-- Every split multiplies the version-compatibility surface. This repository has already
-  been bitten twice by a dependency that stopped being transitive.
-
-The case for:
-
-- The plugin is Claude Code's unit of installation, and a user who wants only the
-  verification ladder should not be handed a UI-prototyping workflow.
-- The four workflows genuinely differ in *when* they are used: once at project birth,
-  repeatedly during design, continuously during build.
-
-**Recommendation: three plugins, not four.** Collapse `-build` into `appfactory-core`,
-because core already owns everything `-build` would describe and the split buys nothing
-but a manifest. Keep `-plan` and `-ui` as real, separate plugins, because each owns a
-distinct workflow with substantial content of its own.
-
-If that is accepted, `appfactory-build`'s manifest should be deleted rather than
-implemented — the highest-value outcome available here.
-
----
-
-## Ordering, if the recommendation is accepted
-
-Priority follows evidence: build first what today's failures proved is missing.
-
-### 1. Fold `-build` into `appfactory-core` — smallest, do first
-
-Add one skill, `verify`, to `appfactory-core`. It owns the workflow the last two days
-established and which currently exists only as knowledge:
-
-- run preflight, read its output, fix rather than suppress
-- the rung ladder and what each rung can and cannot prove
-- **artifact verification** — `scripts/verify-apk.sh`, and why "the build step exited 0"
-  is not "the artifact is installable"
-- physical-device instrumentation over wireless-debugging `adb`, including the five
-  lessons in `docs/LOCAL-BUILDS.md` that each cost real time
-- release closure: what evidence a tag requires, and what local evidence cannot prove
-
-**Acceptance:** a fresh agent, given only this skill, reaches a verified signed APK
-without re-deriving the aapt2 constraint, the install-both-APKs rule, or the animation
-scales.
-
-**Then delete `plugins/appfactory-build/`.**
-
-### 2. `appfactory-plan` — the interview
-
-Owns what `bootstrap` currently under-serves: the *decisions*, separately from the
-*scaffold*.
-
-- irreversible-decision ordering — `applicationId`, signing certificate, persisted schema
-  version — asked first, with the consequence of each stated at the point of asking
-- the compatibility lattice as a coupled set: AGP, Gradle, Kotlin, KSP, Compose BOM, Hilt,
-  Room, Java target. Localmind's `libs.versions.toml` is the worked example, including
-  why nothing is a range and nothing is a pre-release
-- `targetSdk` taken from check `140`'s dated table rather than a literal
-- `.appfactory/contract/UNVERIFIED.md` for anything guessed, flagged until confirmed
-
-**Decided.** `bootstrap` stays in `appfactory-core`. `-plan` runs **before** it and
-produces the contract that `bootstrap` then consumes. Moving `bootstrap` would have been
-cleaner on a whiteboard and would have broken every existing install for no user-visible
-gain.
-
-The seam this creates is the useful part: `-plan` writes
-`.appfactory/contract/` — decisions, their consequences, and `UNVERIFIED.md` — and
-`bootstrap` reads it instead of re-interviewing. That makes the contract a real artifact
-rather than a conversation, so it can be reviewed, diffed, and pointed at when someone
-later asks why `applicationId` is what it is. It also means `bootstrap` keeps working with
-no contract present, which is what protects existing installs.
-
-**Acceptance:** a project generated after the interview passes all 20 checks on its first
-preflight run — the generator's output is itself a fixture.
-
-### 3. `appfactory-ui` — design contract to Compose
-
-The largest and least specified. Content is genuinely available: Localmind's evidence-heavy
-surfaces are a worked example of loading, empty, error, **refusal** and abstention states
-as first-class, of citation placement, truthful truncation labels, and copy-with-provenance.
-
-- publish every screen plus the navigation graph as one reviewable page before any Kotlin
-  exists
-- never emit a downloadable-font provider — a fabricated font certificate killed an app at
-  launch through eleven green builds
-- accessibility as a gate, not a pass: semantics, focus order, font scaling, minimum touch
-  targets, and **assert in reading order** (a suite that scrolled backwards up a long
-  container failed on one API level only)
-- explicit submission over request-per-keystroke
-
-**Dependency:** there is an existing `stitch-ui-resurrector` skill in this environment that
-already converts design-tool output into idiomatic Compose. **Check whether `-ui` should
-wrap it rather than duplicate it** before writing anything.
-
----
-
-## Cross-cutting work, independent of the plugin split
-
-These stand on their own and are cheap:
-
-1. **A check that docs match the corpus.** `12 checks` survived in six places against 19 on
-   disk. `manifest.sha256` drifted `86 files` and `7 checks` behind with nothing verifying
-   it. Both are the same disease: an assertion nobody checks. **Done** —
-   `scripts/repo-check.sh` and `.github/workflows/ci.yml` now close all three.
-2. **Verify `manifest.sha256`, or delete it.** Nothing reads it today; `scaffold.py` walks
-   the runtime tree directly. An unverified digest manifest is worse than none, because it
-   looks like tamper-evidence.
-3. **A fixture asserting the generator's own output passes.** The `targetSdk 34` case would
-   have been impossible.
-
----
-
-## What this roadmap deliberately does not promise
-
-- No date. Both repositories are three days old and the failure rate has not stabilised.
-- No claim that a split improves anything measurable. The strongest recommendation here is
-  to build **one fewer** plugin than currently advertised.
-- Nothing about Play publication, staged rollout, or store listings. That is release
-  authority, and it stays with a human.
+The full interview design, the `verify` ladder detail, and the `release` publish path
+are specified in the v1.0.0 plan of record, not repeated here to avoid a second copy
+that can drift from the first.

@@ -1,8 +1,0 @@
-{
-  "name": "appfactory-plan",
-  "version": "0.1.0",
-  "description": "App interview to contract to walking skeleton. Irreversible decisions first. Requires appfactory-core.",
-  "author": { "name": "Eyal Nof", "email": "verbalogic.project@gmail.com" },
-  "license": "Apache-2.0",
-  "keywords": ["android", "kotlin", "compose", "ci", "apk"]
-}
