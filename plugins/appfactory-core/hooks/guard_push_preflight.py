@@ -19,6 +19,27 @@ DELIBERATE NON-BEHAVIOUR
 - If preflight cannot run at all (missing interpreter, unreadable), allow and say so
   on stderr. A guard that blocks work because it broke is worse than no guard.
 
+WHICH REPO GETS PREFLIGHT'D
+----------------------------
+The blind spot this hook used to have: it resolved the repo from payload["cwd"]
+only, so `git -C <repoB> push` and `cd <repoB> && git push` (issued while cwd was
+still repoA) ran repoA's preflight -- or none at all if repoA had none -- instead
+of repoB's, the one actually being pushed. `target_dir()` now inspects the same
+command segment for a `-C <path>` on the git invocation, or a `cd <path>` segment
+earlier in the same compound command (`&&`, `;`, `|`, or newline separated),
+before falling back to cwd.
+
+Forms this guard still cannot see:
+- `git push` invoked from inside a heredoc, an `eval "$(...)"`, or a variable
+  holding the command (`cmd="git push"; $cmd`) -- the guard only pattern-matches
+  the literal text of tool_input.command.
+- A shell alias or function named `push` that wraps `git push` (or `gp`, etc.).
+- `-C` or `cd` targets built from command substitution or shell variables
+  (`git -C "$REPO" push`, `cd "$dir" && git push`) -- target_dir() only resolves
+  literal paths, not the shell's own variable expansion.
+- Multiple `cd`s in the same compound command; only the nearest preceding `cd`
+  segment (relative to the push segment) is honoured.
+
 Exit 0 allows, exit 2 blocks.
 """
 import json
@@ -26,6 +47,9 @@ import os
 import re
 import subprocess
 import sys
+
+PUSH_RE = re.compile(r"git\s+(?:-C\s+(?P<cpath>\S+)\s+)?push\b")
+CD_RE = re.compile(r"^\s*cd\s+(?P<cdpath>\S+)")
 
 
 def repo_root(start: str) -> str | None:
@@ -37,6 +61,36 @@ def repo_root(start: str) -> str | None:
         return out.stdout.strip() or None
     except Exception:
         return None
+
+
+def target_dir(command: str, cwd: str) -> str:
+    """Resolve the directory `git push` in `command` should preflight.
+
+    Preference order: an explicit `-C <path>` on the push invocation itself,
+    else the nearest preceding `cd <path>` segment in the same compound
+    command, else `cwd`. Relative paths are resolved against `cwd`.
+    """
+    segments = re.split(r"[;&|]{1,2}|\n", command)
+    cd_dir: str | None = None
+    push_dir: str | None = None
+    for segment in segments:
+        stripped = segment.strip()
+        push_match = PUSH_RE.search(stripped)
+        if push_match:
+            cpath = push_match.group("cpath")
+            if cpath:
+                push_dir = cpath.strip("'\"")
+            elif cd_dir:
+                push_dir = cd_dir
+            break
+        cd_match = CD_RE.match(stripped)
+        if cd_match:
+            cd_dir = cd_match.group("cdpath").strip("'\"")
+
+    target = push_dir or cwd
+    if not os.path.isabs(target):
+        target = os.path.join(cwd, target)
+    return target
 
 
 def main() -> int:
@@ -53,7 +107,8 @@ def main() -> int:
     if not re.search(r"(^|[;&|]\s*|\s)git\s+(-C\s+\S+\s+)?push\b", cmd):
         return 0
 
-    root = repo_root(payload.get("cwd") or os.getcwd())
+    cwd = payload.get("cwd") or os.getcwd()
+    root = repo_root(target_dir(cmd, cwd))
     if not root:
         return 0
 

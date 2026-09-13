@@ -173,6 +173,39 @@ while IFS= read -r f; do
 done < <(find . -name '*.sh' -not -path './.git/*' -not -path '*/fixtures/*')
 [ "$sh_bad" -eq 0 ] && ok "every shipped shell script parses"
 
+# ── 8. Python compiles, lints clean, and its own test suite passes ─────────────
+#
+# A silent skip here is the exact disease this script exists to cure, just moved
+# one level down into "checking the checker" -- so a missing pytest is a FAIL, not
+# a quiet no-op that looks like success.
+py_bad=0
+while IFS= read -r f; do
+    python3 -m py_compile "$f" 2>/dev/null || { bad "$f does not compile"; py_bad=1; }
+done < <(find . -name '*.py' -not -path './.git/*' -not -path '*/fixtures/*')
+[ "$py_bad" -eq 0 ] && ok "every shipped Python file compiles"
+
+if command -v ruff >/dev/null 2>&1; then
+    if ruff_out="$(ruff check . 2>&1)"; then
+        ok "ruff check clean"
+    else
+        bad "ruff check reported problems"
+        printf '%s\n' "$ruff_out" | sed 's/^/     /'
+    fi
+else
+    printf '%swarn%s ruff not installed -- Python lint was SKIPPED, not verified\n' "$Y" "$O"
+fi
+
+if python3 -c "import pytest" >/dev/null 2>&1; then
+    if pytest_out="$(python3 -m pytest -q -m "not slow and not device" 2>&1)"; then
+        ok "$(printf '%s\n' "$pytest_out" | tail -1)"
+    else
+        bad "pytest reported failures"
+        printf '%s\n' "$pytest_out" | tail -30 | sed 's/^/     /'
+    fi
+else
+    bad "pytest is not importable -- Python tests were NOT run"
+fi
+
 printf '\n'
 if [ "$fails" -eq 0 ]; then
     printf '%sRepo check clean%s\n' "$G" "$O"

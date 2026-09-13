@@ -1,0 +1,16 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: exercises a real subprocess pipeline (JDK keytool, preflight corpus, full scaffold) -- excluded from the fast default run",
+    "device: needs a real Android device or emulator",
+]
+
+[tool.ruff]
+target-version = "py312"
+exclude = [
+    "plugins/appfactory-core/runtime/scripts/preflight/fixtures",
+    "plugins/appfactory-core/runtime/templates",
+]
+
+[tool.ruff.lint]
+select = ["E9", "F"]
