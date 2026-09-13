@@ -4,7 +4,6 @@ Includes two regression cases for the fixed defect where the hook resolved the
 repo from payload["cwd"] only, so `git -C <repoB> push` and `cd <repoB> &&
 git push` (cwd = repoA) ran repoA's preflight (or none) instead of repoB's.
 """
-import pytest
 
 from tests.conftest import run_hook
 
@@ -32,17 +31,11 @@ def test_git_commit_message_containing_push_word_allows(git_repo):
     assert rc == 0
 
 
-@pytest.mark.xfail(
-    reason=(
-        "The push-detection regex only requires whitespace before `git` and `push` "
-        "following (with an optional -C group); it does not require these to be the "
-        "actual command verb, so a commit message like 'fix: git push' still matches "
-        "the regex textually and triggers preflight on a plain `git commit`. This is a "
-        "known false-positive in the guard, not something this test suite is asked to fix."
-    ),
-    strict=False,
-)
 def test_git_commit_message_fix_git_push_allows(git_repo):
+    """Was an xfail. The old regex only required whitespace before `git`, so a commit
+    message mentioning a push triggered preflight on a plain commit. cmdparse reads the
+    subcommand position, so the message is data now.
+    """
     repo = git_repo("repo", preflight_exit=1, preflight_output="FAIL x")
     rc, _, _ = run_hook(SCRIPT, _bash("git commit -m 'fix: git push'", repo))
     assert rc == 0
@@ -111,3 +104,68 @@ def test_git_pushd_is_not_a_push_allows(git_repo):
     repo = git_repo("repo", preflight_exit=1, preflight_output="FAIL x")
     rc, _, _ = run_hook(SCRIPT, _bash("git pushd", repo))
     assert rc == 0
+
+
+# ── The push enumeration: mentions vs invocations ─────────────────────────────
+#
+# The mirror of the blind spots fixed earlier the same day. That guard saw too little
+# (a push via `git -C` ran preflight on the wrong tree); this one saw too much.
+
+def test_commit_message_with_double_quotes_allows(git_repo):
+    repo = git_repo("repo", preflight_exit=1, preflight_output="FAIL x")
+    rc, _, _ = run_hook(SCRIPT, _bash('git commit -m "git push"', repo))
+    assert rc == 0
+
+
+def test_grep_for_the_phrase_allows(git_repo):
+    repo = git_repo("repo", preflight_exit=1, preflight_output="FAIL x")
+    rc, _, _ = run_hook(SCRIPT, _bash("grep -rn 'git push' docs/", repo))
+    assert rc == 0
+
+
+def test_echo_of_the_phrase_allows(git_repo):
+    repo = git_repo("repo", preflight_exit=1, preflight_output="FAIL x")
+    rc, _, _ = run_hook(SCRIPT, _bash("echo 'remember to git push'", repo))
+    assert rc == 0
+
+
+def test_sed_rewriting_the_phrase_allows(git_repo):
+    repo = git_repo("repo", preflight_exit=1, preflight_output="FAIL x")
+    rc, _, _ = run_hook(SCRIPT, _bash("sed -i 's/git push/git pull/' notes.md", repo))
+    assert rc == 0
+
+
+def test_quoted_separator_does_not_fake_a_segment(git_repo):
+    """`echo "a && git push"` is one segment and invokes nothing."""
+    repo = git_repo("repo", preflight_exit=1, preflight_output="FAIL x")
+    rc, _, _ = run_hook(SCRIPT, _bash('echo "a && git push"', repo))
+    assert rc == 0
+
+
+def test_push_inside_bash_dash_c_still_blocks(git_repo):
+    """Quoting is not proof of inertness: bash -c executes its argument."""
+    repo = git_repo("repo", preflight_exit=1, preflight_output="FAIL x")
+    rc, _, err = run_hook(SCRIPT, _bash('bash -c "git push"', repo))
+    assert rc == 2 and "BLOCKED" in err
+
+
+def test_sudo_prefixed_push_still_blocks(git_repo):
+    repo = git_repo("repo", preflight_exit=1, preflight_output="FAIL x")
+    rc, _, err = run_hook(SCRIPT, _bash("sudo git push", repo))
+    assert rc == 2 and "BLOCKED" in err
+
+
+def test_push_with_global_config_flag_still_blocks(git_repo):
+    repo = git_repo("repo", preflight_exit=1, preflight_output="FAIL x")
+    rc, _, err = run_hook(SCRIPT, _bash("git -c push.default=simple push", repo))
+    assert rc == 2 and "BLOCKED" in err
+
+
+def test_blocked_message_says_nothing_ran(git_repo):
+    """A blocked compound command runs none of its parts. During the session that
+    produced these tests, a `cp` backup earlier in a blocked command silently never
+    happened, and the absent backup was only discovered when it was needed."""
+    repo = git_repo("repo", preflight_exit=1, preflight_output="FAIL x")
+    rc, _, err = run_hook(SCRIPT, _bash("cp a a.bak && git push", repo))
+    assert rc == 2
+    assert "Nothing in this command ran" in err

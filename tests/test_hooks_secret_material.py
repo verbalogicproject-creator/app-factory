@@ -136,3 +136,14 @@ def test_write_content_with_private_key_id_blocks():
     )
     assert rc == 2
     assert "BLOCKED" in err
+
+
+def test_blocked_message_says_nothing_ran():
+    """A blocked Write runs nothing; and a blocked compound Bash command runs none of
+    its parts either. Both surprised someone on 2026-09-13."""
+    rc, _, err = run_hook(SCRIPT, {
+        "tool_name": "Write",
+        "tool_input": {"file_path": "/tmp/release.jks", "content": "x"},
+    })
+    assert rc == 2
+    assert "Nothing in this command ran" in err

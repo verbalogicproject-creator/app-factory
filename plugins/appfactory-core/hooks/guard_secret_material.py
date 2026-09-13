@@ -47,6 +47,8 @@ import os
 import re
 import sys
 
+import cmdparse
+
 # Filename patterns that are signing material by definition.
 BLOCKED_NAMES = [
     "*.jks", "*.keystore", "*.p12", "*.pfx",
@@ -89,7 +91,8 @@ def main() -> int:
                 "NEVER change after the first install. Committed once, it is in the history "
                 "forever, and rewriting history does not recall the clones.\n\n"
                 "Keep it in the vault:  python3 .appfactory/bin/pass_manager.py set\n"
-                "Materialise it only when a build needs it, and shred it after.",
+                "Materialise it only when a build needs it, and shred it after.\n\n"
+                + cmdparse.NOTHING_RAN,
                 file=sys.stderr,
             )
             return 2
@@ -108,7 +111,8 @@ def main() -> int:
                     "and apktool recover it in seconds, and obfuscation raises that to minutes "
                     "without changing the category.\n\n"
                     "Either put it behind a backend, or use a key restricted by package name + "
-                    "signing-certificate fingerprint, which is useless when extracted.",
+                    "signing-certificate fingerprint, which is useless when extracted.\n\n"
+                    + cmdparse.NOTHING_RAN,
                     file=sys.stderr,
                 )
                 return 2

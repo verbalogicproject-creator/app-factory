@@ -44,12 +44,10 @@ Exit 0 allows, exit 2 blocks.
 """
 import json
 import os
-import re
 import subprocess
 import sys
 
-PUSH_RE = re.compile(r"git\s+(?:-C\s+(?P<cpath>\S+)\s+)?push\b")
-CD_RE = re.compile(r"^\s*cd\s+(?P<cdpath>\S+)")
+import cmdparse
 
 
 def repo_root(start: str) -> str | None:
@@ -64,28 +62,31 @@ def repo_root(start: str) -> str | None:
 
 
 def target_dir(command: str, cwd: str) -> str:
-    """Resolve the directory `git push` in `command` should preflight.
+    """Resolve the directory the push in `command` should preflight.
 
-    Preference order: an explicit `-C <path>` on the push invocation itself,
-    else the nearest preceding `cd <path>` segment in the same compound
-    command, else `cwd`. Relative paths are resolved against `cwd`.
+    Preference order: an explicit `-C <path>` on the push invocation itself, else the
+    nearest preceding `cd <path>` in the same compound command, else `cwd`. Relative
+    paths resolve against `cwd`.
+
+    Token-based via cmdparse, so a quoted path with spaces survives and a `cd` inside a
+    quoted string is not mistaken for a real one.
     """
-    segments = re.split(r"[;&|]{1,2}|\n", command)
     cd_dir: str | None = None
     push_dir: str | None = None
-    for segment in segments:
-        stripped = segment.strip()
-        push_match = PUSH_RE.search(stripped)
-        if push_match:
-            cpath = push_match.group("cpath")
-            if cpath:
-                push_dir = cpath.strip("'\"")
-            elif cd_dir:
+    for segment in cmdparse.split_segments(command):
+        tokens = cmdparse.tokenize(segment)
+        if not tokens:
+            continue
+        if cmdparse.git_subcommand(tokens) == "push":
+            for i, tok in enumerate(tokens):
+                if tok == "-C" and i + 1 < len(tokens):
+                    push_dir = tokens[i + 1]
+                    break
+            if push_dir is None and cd_dir:
                 push_dir = cd_dir
             break
-        cd_match = CD_RE.match(stripped)
-        if cd_match:
-            cd_dir = cd_match.group("cdpath").strip("'\"")
+        if tokens[0] == "cd" and len(tokens) > 1:
+            cd_dir = tokens[1]
 
     target = push_dir or cwd
     if not os.path.isabs(target):
@@ -103,8 +104,11 @@ def main() -> int:
         return 0
     cmd = (payload.get("tool_input") or {}).get("command", "")
 
-    # `git push` as an actual command, not the substring inside a commit message.
-    if not re.search(r"(^|[;&|]\s*|\s)git\s+(-C\s+\S+\s+)?push\b", cmd):
+    # `git push` as an actual command. The previous regex only required whitespace
+    # before `git`, so `git commit -m "fix: git push"` matched textually and ran
+    # preflight on a plain commit. cmdparse reads the SUBCOMMAND position instead, so a
+    # message that mentions a push is data, not a push.
+    if not cmdparse.git_invocations(cmd, "push"):
         return 0
 
     cwd = payload.get("cwd") or os.getcwd()
@@ -134,7 +138,7 @@ def main() -> int:
         + (result.stdout or "") + (result.stderr or "") +
         "\nFix the above, or if a finding is genuinely wrong, record a reason in "
         ".appfactory/preflight-ignore -- the reason field is required, because silent "
-        "suppression is how check corpora die.",
+        "suppression is how check corpora die.\n\n" + cmdparse.NOTHING_RAN,
         file=sys.stderr,
     )
     return 2
