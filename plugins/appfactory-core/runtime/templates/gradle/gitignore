@@ -24,3 +24,6 @@ keystore.properties
 
 # Pipeline scratch
 .appfactory/tmp/
+# Per-stage build logs from scripts/local-build.sh. Machine-local and noisy; the
+# receipts next to them (.appfactory/receipts/) are the part worth keeping.
+.appfactory/logs/
