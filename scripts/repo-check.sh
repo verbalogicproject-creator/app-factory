@@ -92,14 +92,20 @@ PY
 #
 # Regenerated and compared rather than trusted. A manifest that is merely PRESENT
 # proves nothing, which is how this one drifted 86 files without anyone noticing.
+#
+# __pycache__ IS EXCLUDED, and that is not tidiness. Running the test suite imports
+# runtime/bin/*.py, which writes .pyc files into the tree, which made this check go
+# red on a tree nobody had edited. A check that fails when nothing is wrong is as
+# corrosive as one that passes when something is -- it just costs its credibility
+# more slowly. The generator skips them when vendoring for the same reason.
 if [ -f "$RUNTIME/manifest.sha256" ]; then
-    ( cd "$RUNTIME" && find . -type f ! -name manifest.sha256 -print0 \
+    ( cd "$RUNTIME" && find . -type f ! -name manifest.sha256 ! -path '*/__pycache__/*' -print0 \
         | sort -z | xargs -0 sha256sum ) > /tmp/af-manifest.$$ 2>/dev/null
     if diff -q /tmp/af-manifest.$$ "$RUNTIME/manifest.sha256" >/dev/null 2>&1; then
         ok "runtime manifest matches the tree ($(wc -l < "$RUNTIME/manifest.sha256" | tr -d ' ') files)"
     else
         bad "runtime/manifest.sha256 is stale -- regenerate it"
-        note "cd $RUNTIME && find . -type f ! -name manifest.sha256 -print0 \\"
+        note "cd $RUNTIME && find . -type f ! -name manifest.sha256 ! -path '*/__pycache__/*' -print0 \\"
         note "  | sort -z | xargs -0 sha256sum > manifest.sha256"
         note "differences: $(diff /tmp/af-manifest.$$ "$RUNTIME/manifest.sha256" | grep -c '^[<>]') line(s)"
     fi
