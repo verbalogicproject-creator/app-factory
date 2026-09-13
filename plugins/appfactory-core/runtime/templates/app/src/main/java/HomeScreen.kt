@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,28 +38,37 @@ fun HomeScreen(
     gitSha: String,
     modifier: Modifier = Modifier,
 ) {
-    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxSize().padding(24.dp)) {
-            Text("{{APP_NAME_UPPER}}", style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "{{APP_TAGLINE}}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+    // Scaffold + its inner padding is what actually consumes the system-bar
+    // insets that enableEdgeToEdge() (MainActivity) now draws content under --
+    // without applying `inner` here, edge-to-edge is on and content still sits
+    // beneath the status bar and navigation bar. See preflight check 210.
+    Scaffold(modifier = modifier.fillMaxSize()) { inner ->
+        Surface(
+            modifier = Modifier.fillMaxSize().padding(inner),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            Column(Modifier.fillMaxSize().padding(24.dp)) {
+                Text("{{APP_NAME_UPPER}}", style = MaterialTheme.typography.headlineMedium)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "{{APP_TAGLINE}}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
-            Spacer(Modifier.height(24.dp))
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("BUILD", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(8.dp))
-                    KeyValue("version", versionName)
-                    KeyValue("code", versionCode.toString())
-                    KeyValue("commit", gitSha)
-                    // Reaching this screen at all proves Hilt built its graph: the
-                    // host Activity is @AndroidEntryPoint, so a missing
-                    // @HiltAndroidApp would have thrown before any of this composed.
-                    KeyValue("hilt", "graph built")
+                Spacer(Modifier.height(24.dp))
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("BUILD", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(8.dp))
+                        KeyValue("version", versionName)
+                        KeyValue("code", versionCode.toString())
+                        KeyValue("commit", gitSha)
+                        // Reaching this screen at all proves Hilt built its graph: the
+                        // host Activity is @AndroidEntryPoint, so a missing
+                        // @HiltAndroidApp would have thrown before any of this composed.
+                        KeyValue("hilt", "graph built")
+                    }
                 }
             }
         }

@@ -50,11 +50,20 @@ jobs:
       # lesson and it applies to its own CI.
       - name: Assert the checker's own dependencies
         run: |
-          python3 -c "import yaml, json, hashlib; print('deps ok')"
+          python3 -m pip install --quiet "pytest>=9" "cryptography>=42" ruff
+          python3 -c "import yaml, json, hashlib, pytest, cryptography; print('deps ok')"
           command -v sha256sum >/dev/null || { echo "::error::sha256sum absent"; exit 1; }
+          command -v ruff >/dev/null || { echo "::error::ruff absent"; exit 1; }
 
       - name: Repo self-check
         run: bash scripts/repo-check.sh
+
+      # repo-check.sh only runs the fast subset (not slow, not device) so the two-second
+      # economic argument in the header above still holds. The full suite -- including
+      # the JDK keytool round trips and the full scaffold+preflight walk -- gets its own
+      # step so a failure there is legible in the job list without opening a log.
+      - name: Python tests
+        run: python3 -m pytest -q
 
       # The corpus verifies itself against its fixtures. repo-check.sh already runs this,
       # but it is repeated as its own step so a failure is legible in the job list
@@ -86,4 +95,105 @@ jobs:
             echo "- checks in corpus: **$(find plugins/appfactory-core/runtime/scripts/preflight/checks -name '[0-9][0-9][0-9]-*.sh' | wc -l)**"
             echo "- runtime files under digest: **$(wc -l < plugins/appfactory-core/runtime/manifest.sha256)**"
             echo "- plugins advertised: **$(python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))")**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # repo-check.sh and the preflight corpus only READ the scaffolded output --
+  # they never hand it to a JDK or an SDK. That leaves the actual promise of
+  # this repo, "the thing it generates compiles", unverified by its own CI.
+  # This job closes that gap on both architectures the generated project's own
+  # ci.yml targets: x86_64 gets the full signed-nothing release compile (R8,
+  # bundleRelease, mapping verification, same as a generated app's own CI),
+  # ARM gets debug-only for the reason recorded in ci-arm-toolchain.sh and in
+  # the generated ci.yml's build-arm job comment.
+  # ---------------------------------------------------------------------
+  build-demo:
+    needs: repo-check
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Set up Android SDK (ARM only -- x86_64 runners ship one)
+        if: matrix.os == 'ubuntu-24.04-arm'
+        uses: android-actions/setup-android@v4
+
+      - name: Scaffold a demo project
+        run: |
+          DEMO="${{ runner.temp }}/demo"
+          python3 plugins/appfactory-core/runtime/bin/scaffold.py "$DEMO" \
+            --application-id com.example.democheck \
+            --app-name "Demo Check"
+          echo "DEMO=$DEMO" >> "$GITHUB_ENV"
+
+      - name: Vendor an aarch64 aapt2 (ARM only)
+        if: matrix.os == 'ubuntu-24.04-arm'
+        working-directory: ${{ env.DEMO }}
+        run: bash scripts/ci-arm-toolchain.sh
+
+      - name: Build debug and run unit tests (ARM)
+        if: matrix.os == 'ubuntu-24.04-arm'
+        working-directory: ${{ env.DEMO }}
+        run: |
+          START=$SECONDS
+          ./gradlew assembleDebug testDebugUnitTest --no-daemon --stacktrace \
+            -Pandroid.aapt2FromMavenOverride="$PWD/.appfactory/tmp/aapt2"
+          echo "BUILD_SECONDS=$(( SECONDS - START ))" >> "$GITHUB_ENV"
+          bash scripts/verify-apk.sh app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Build debug, release and run unit tests (x86_64)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: ${{ env.DEMO }}
+        run: |
+          START=$SECONDS
+          ./gradlew assembleDebug testDebugUnitTest --no-daemon --stacktrace
+          echo "BUILD_SECONDS=$(( SECONDS - START ))" >> "$GITHUB_ENV"
+          bash scripts/verify-apk.sh app/build/outputs/apk/debug/app-debug.apk
+
+          ./gradlew assembleRelease bundleRelease --stacktrace
+          RELEASE_APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          bash scripts/verify-apk.sh "$RELEASE_APK"
+          python3 .appfactory/bin/verify_mapping.py \
+            app/build/outputs/mapping/release/mapping.txt \
+            app/src/main/AndroidManifest.xml \
+            app/src/main \
+            com.example.democheck
+
+      - name: Count unit tests
+        if: always()
+        working-directory: ${{ env.DEMO }}
+        run: |
+          shopt -s nullglob globstar
+          total=0
+          for f in app/build/test-results/**/*.xml; do
+            n=$(sed -n 's/.*<testsuite[^>]* tests="\([0-9]*\)".*/\1/p' "$f" | head -1)
+            total=$(( total + ${n:-0} ))
+          done
+          echo "UNIT_TEST_COUNT=$total" >> "$GITHUB_ENV"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### demo build (${{ matrix.os }})"
+            echo ""
+            echo "- build seconds: **${BUILD_SECONDS:-unknown}**"
+            echo "- unit tests executed: **${UNIT_TEST_COUNT:-0}**"
           } >> "$GITHUB_STEP_SUMMARY"

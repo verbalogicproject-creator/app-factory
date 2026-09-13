@@ -16,9 +16,8 @@ name: ci
 
 on:
   push:
-    branches: ["main"]
+    branches: ["**"]
   pull_request:
-    branches: ["main"]
   workflow_dispatch:
 
 concurrency:
@@ -241,3 +240,69 @@ jobs:
             echo "Release artifacts are not published here — they are unsigned"
             echo "without secrets. Tag \`v*\` to cut a signed release."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # DEBUG ONLY, never release. `ubuntu-24.04-arm` has no Android SDK
+  # preinstalled and no aarch64 aapt2 on Google's Maven, so this job vendors
+  # one from a third party (scripts/ci-arm-toolchain.sh) at self-reported
+  # version 2.19 -- native EXEC, daemon-mode works, but 2.19 is the exact
+  # version documented (docs/LOCAL-BUILDS.md §4a) to corrupt a release build's
+  # manifest and resources.arsc under isMinifyEnabled + isShrinkResources. It
+  # is fine for a debug build, where neither runs, and this job never calls
+  # assembleRelease or bundleRelease for that reason -- getting a green ARM
+  # release leg here would be a false green, not a real one.
+  # ---------------------------------------------------------------------
+  build-arm:
+    needs: preflight
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Vendor an aarch64 aapt2 (debug builds only -- see job comment)
+        run: bash scripts/ci-arm-toolchain.sh
+
+      - name: Build debug, compile instrumented tests, run unit tests
+        id: gradle
+        run: |
+          ./gradlew assembleDebug assembleDebugAndroidTest testDebugUnitTest --stacktrace \
+            -Pandroid.aapt2FromMavenOverride="$PWD/.appfactory/tmp/aapt2"
+
+      # Same gate as the x86_64 job: testDebugUnitTest reports SUCCESS on zero tests.
+      - name: Fail if the test suite is vacuous
+        if: steps.gradle.outcome == 'success'
+        run: |
+          shopt -s nullglob globstar
+          total=0
+          for f in app/build/test-results/**/*.xml; do
+            n=$(sed -n 's/.*<testsuite[^>]* tests="\([0-9]*\)".*/\1/p' "$f" | head -1)
+            total=$(( total + ${n:-0} ))
+          done
+          echo "unit tests executed: $total"
+          if [ "$total" -eq 0 ]; then
+            echo "::error::0 unit tests ran. testDebugUnitTest passed vacuously -- this is not a green suite."
+            exit 1
+          fi
+
+      - name: Verify the debug APK is a well-formed APK
+        run: |
+          APK=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
+          if [ -z "$APK" ]; then
+            echo "::error::assembleDebug produced no APK under app/build/outputs/apk/debug"
+            exit 1
+          fi
+          bash scripts/verify-apk.sh "$APK"

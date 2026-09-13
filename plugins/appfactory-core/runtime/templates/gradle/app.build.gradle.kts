@@ -1,4 +1,5 @@
 import java.util.Properties
+import com.github.triplet.gradle.androidpublisher.ReleaseStatus
 
 plugins {
     alias(libs.plugins.android.application)
@@ -8,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.play.publisher)
 }
 
 // Signing credentials come from a git-ignored keystore.properties locally, or from
@@ -62,6 +64,12 @@ android {
             "GIT_SHA",
             "\"${System.getenv("GITHUB_SHA")?.take(7) ?: "local"}\"",
         )
+        // Substituted by scaffold.py: the SAG_PORT buildConfigField line for
+        // --kind web-shell, or nothing (a blank line) for --kind compose. Kept as
+        // a substitution rather than an overlay copy of this whole file so the two
+        // kinds never carry two drifting copies of everything else here (signing,
+        // R8, Play publishing...).
+{{WEB_SHELL_BUILDCONFIG}}
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -182,6 +190,28 @@ kotlin {
 // persisted schema version is the third of the three irreversible decisions.
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
+// Gradle Play Publisher. Applied unconditionally: its README (Triple-T/gradle-play-publisher,
+// "Authenticating Gradle Play Publisher" section) documents ANDROID_PUBLISHER_CREDENTIALS and
+// serviceAccountCredentials.set(file(...)) as the two ways to supply credentials, and describes
+// no configuration-time failure when neither is present -- credentials are read lazily by the
+// publish tasks themselves, not by applying the plugin. So a clean checkout with no Play secrets
+// still configures and builds fine; only `./gradlew publishBundle` (never invoked by ci.yml, only
+// by release.yml, and only when release.yml's own `enabled` gate is true) would fail.
+//
+// PLAY_TRACK / PLAY_RELEASE_STATUS come from release.yml's environment. Locally, with neither
+// set, this defaults to the internal track and a COMPLETED rollout -- consistent with "publish
+// now" being the common case once a package already exists on Play. The FIRST release of a new
+// package must still be uploaded by hand in Play Console; after that, set the repo variable
+// PLAY_RELEASE_STATUS=draft for the first automated tag if a draft is wanted instead.
+play {
+    track.set(System.getenv("PLAY_TRACK") ?: "internal")
+    releaseStatus.set(
+        if (System.getenv("PLAY_RELEASE_STATUS") == "draft") ReleaseStatus.DRAFT
+        else ReleaseStatus.COMPLETED
+    )
+    defaultToAppBundles.set(true)
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -214,4 +244,8 @@ dependencies {
 
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // Substituted by scaffold.py: web-shell's WebView + Ktor command server
+    // dependencies for --kind web-shell, or nothing for --kind compose.
+{{WEB_SHELL_DEPENDENCIES}}
 }

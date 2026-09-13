@@ -237,8 +237,46 @@ jobs:
           ( cd dist && sha256sum ./* > "SHA256SUMS.txt" )
           ls -la dist
 
+      # Output-variable gating, not `if: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}` --
+      # secrets are not permitted directly inside an `if:` expression, so the presence
+      # check has to happen in a `run:` step and be handed forward as a step output.
+      - name: Is Play upload configured?
+        id: play
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::PLAY_SERVICE_ACCOUNT_JSON secret is not set -- skipping the Play internal-track upload."
+          fi
+
+      # The bundle must be signed the same way the GitHub Release APK/AAB are --
+      # reusing the exact signing env from the "Build signed release" step above, not
+      # a second copy of it, so the two can never drift apart.
+      #
+      # The FIRST release of a brand-new package on Play still has to be uploaded by
+      # hand once, in Play Console -- GPP publishes updates to an existing listing, it
+      # does not create one. After that, every tag's bundle lands on the internal
+      # track automatically.
+      - name: Publish to Play internal track
+        if: steps.play.outputs.enabled == 'true'
+        env:
+          ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PLAY_TRACK: internal
+          PLAY_RELEASE_STATUS: ${{ vars.PLAY_RELEASE_STATUS || 'completed' }}
+          SIGNING_KEYSTORE_PATH: ${{ runner.temp }}/keystore.jks
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD || secrets.SIGNING_KEYSTORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_versionName: ${{ steps.tag.outputs.name }}
+          ORG_GRADLE_PROJECT_versionCode: ${{ steps.tag.outputs.code }}
+        run: ./gradlew publishBundle --track internal --stacktrace
+
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        # Pinned to a commit SHA because this step receives GITHUB_TOKEN.
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: ${{ steps.tag.outputs.tag }}

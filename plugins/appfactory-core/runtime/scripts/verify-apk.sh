@@ -148,6 +148,106 @@ if [ "$EXPECT_SIGNED" -eq 1 ]; then
     fi
 fi
 
+# ── 4. 16 KB page alignment of native libraries ─────────────────────────────────
+#
+# Play requires 16 KB page support (from Nov 2025) for apps shipping native libraries
+# and targeting API 35+. The PRIMARY assertion is ELF program-header alignment: every
+# PT_LOAD segment's Align must be >= 0x4000 (16 KB), because that is what actually
+# decides whether the library loads on a 16 KB-page device, independent of how it is
+# packaged in the zip. Check 150 in this corpus mandates
+# jniLibs.useLegacyPackaging = true (compressed, extracted at install) for apps with
+# native code -- at which point zip entry offsets are irrelevant, but ELF alignment
+# still decides whether the extracted library loads. zipalign's own -P 16 check only
+# means anything when entries are STORED, so it runs SECOND, and only when they are.
+lib_entries="$(python3 - "$APK" <<'PY' 2>/dev/null
+import sys, zipfile
+try:
+    z = zipfile.ZipFile(sys.argv[1])
+except Exception as e:
+    print("ZIPERROR", e)
+    raise SystemExit(0)
+all_stored = True
+for i in z.infolist():
+    if i.filename.startswith("lib/") and i.filename.endswith(".so"):
+        stored = i.compress_type == zipfile.ZIP_STORED
+        if not stored:
+            all_stored = False
+        print("SO", i.filename, "STORED" if stored else "COMPRESSED")
+print("ALL_STORED", all_stored)
+PY
+)"
+
+so_list="$(printf '%s\n' "$lib_entries" | sed -n 's/^SO \(.*\) \(STORED\|COMPRESSED\)$/\1/p')"
+
+if [ -z "$so_list" ]; then
+    ok "no native libraries (16 KB alignment n/a)"
+else
+    READELF=""
+    for c in readelf llvm-readelf eu-readelf; do
+        command -v "$c" >/dev/null 2>&1 && { READELF="$c"; break; }
+    done
+    if [ -z "$READELF" ]; then
+        # SKIP LOUDLY -- same reasoning as check 190: a silent pass here is
+        # indistinguishable from a clean result.
+        skip "no readelf on PATH -- install binutils to enable 16 KB page-alignment checking"
+    else
+        aligned=1
+        checked=0
+        workdir="$(mktemp -d)"
+        while IFS= read -r entry; do
+            [ -z "$entry" ] && continue
+            base="$(basename "$entry")"
+            abi="$(basename "$(dirname "$entry")")"
+            checked=$((checked + 1))
+            outdir="$workdir/$checked"
+            mkdir -p "$outdir"
+            if ! python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extract(sys.argv[2], sys.argv[3])" \
+                "$APK" "$entry" "$outdir" 2>/dev/null; then
+                bad "$entry: could not extract from APK to check alignment"
+                aligned=0
+                continue
+            fi
+            so_path="$outdir/$entry"
+            bad_align=0
+            while IFS= read -r align_hex; do
+                [ -z "$align_hex" ] && continue
+                if [ "$((align_hex))" -lt 16384 ]; then
+                    bad_align=1
+                fi
+            done < <("$READELF" -lW "$so_path" 2>/dev/null | awk '/LOAD/ { print $NF }')
+            if [ "$bad_align" -eq 1 ]; then
+                bad "$abi/$base: PT_LOAD segment Align < 0x4000 (16 KB) -- will not load on a 16 KB-page device"
+                aligned=0
+            fi
+        done <<< "$so_list"
+        rm -rf "$workdir"
+        [ "$aligned" -eq 1 ] && ok "$checked native librar$([ "$checked" -eq 1 ] && echo y || echo ies) 16 KB page-aligned"
+    fi
+
+    # SECONDARY: zipalign's own -P 16 check, meaningful only when every .so entry is
+    # STORED (uncompressed) in the zip -- compressed entries have no zip-level page
+    # alignment to speak of, and useLegacyPackaging = true (check 150) means they
+    # normally are compressed.
+    all_stored="$(printf '%s' "$lib_entries" | sed -n 's/^ALL_STORED //p')"
+    if [ "$all_stored" != "True" ]; then
+        skip "zipalign -P 16 not run: native libraries are compressed in this APK (useLegacyPackaging) -- zip-level page alignment does not apply; ELF alignment above is what decides load-ability"
+    else
+        ZIPALIGN="${ZIPALIGN:-}"
+        if [ -z "$ZIPALIGN" ]; then
+            for c in zipalign "${ANDROID_HOME:-}/build-tools"/*/zipalign "${ANDROID_SDK_ROOT:-}/build-tools"/*/zipalign; do
+                [ -x "$c" ] && { ZIPALIGN="$c"; break; }
+            done
+        fi
+        if [ -z "$ZIPALIGN" ] || [ ! -x "$ZIPALIGN" ]; then
+            skip "zipalign not found -- set ZIPALIGN=/path/to/zipalign to double-check zip-level 16 KB alignment"
+        elif za_out="$("$ZIPALIGN" -c -P 16 -v 4 "$APK" 2>&1)"; then
+            ok "zipalign -P 16 confirms zip-level 16 KB alignment"
+        else
+            bad "zipalign -P 16 failed: $(printf '%s' "$za_out" | tail -3 | tr '\n' ' ')"
+        fi
+    fi
+fi
+
 printf '\n'
 if [ "$fails" -eq 0 ]; then
     printf '%sAPK verified%s -- container is well-formed and parseable.\n' "$G" "$O"

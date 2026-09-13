@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cleartext, and ONLY for loopback. The command server is 127.0.0.1-only by
+     design (CommandServer binds host = "127.0.0.1", never 0.0.0.0), so this exists
+     to let a local HTTP client reach it at all; cleartext is blocked by default
+     from API 28; without opening cleartext to the wider network the app might be
+     on. See preflight check 120, which fails if this file exists but is not wired
+     from <application>, or is wired but does not exist. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>
