@@ -220,7 +220,7 @@ cb0da6751c2b753a16ac168bb354870ebb1e162e9083f116729cec9c781156b8  ./templates/gr
 3a326d4dcc2773211ccebcbd7320378c31b41e9f0096d512eb888a0e75a807cb  ./templates/gradle/gradle.properties
 fc977a94723af68aaffa4e5d60496fb4aeed1884b6b19e5e2f2fd7612673313d  ./templates/gradle/gradlew
 bdecf875b6868cbcbd36a1f85eedf0832f358ff28092c5797ed645f7edce77d9  ./templates/gradle/gradlew.bat
-836490155c78f07dc8ba1d0e215f07c6f61424461cd25bc6c25ba4be5ce06e04  ./templates/gradle/libs.versions.toml
+080c149fa324c6b7b6211661fcae3ab332523ff3a00abe39f790ca5f1d1b8d61  ./templates/gradle/libs.versions.toml
 231bd5d79a57d1334de448fb746dce3d00b03c9c3e9485a4715fb885ea29368c  ./templates/gradle/proguard-rules.pro
 5388ca267f1803aad2c84c59a083174f80cc39e8bb6ba12a6a2cce9a313fa92c  ./templates/gradle/proguard-test-rules.pro
 1bda93f2cb6f1011d701385e20d1b31c9d2011097a3670579a9617fc82eca827  ./templates/gradle/root.build.gradle.kts
@@ -228,14 +228,14 @@ e74a0dec6ee28d1f7239688be6c6f9910dfb0da1e4d5678c0c89ff479d9694c7  ./templates/gr
 4acf8745c12b1607ca5017192b4cf93749b79df795f6080e5a507ac11d87d061  ./templates/kinds/web-shell/app/src/androidTest/java/WebShellTest.kt
 06dc70fe36a40488808ac05005b2ba77385be1bc6fb25350786c79a28d13e576  ./templates/kinds/web-shell/app/src/main/AndroidManifest.xml
 86b68cb29dc9528e4e2361361747b9d631759c26841f230dfa3f4d44eb5740b1  ./templates/kinds/web-shell/app/src/main/java/MainActivity.kt
-f45a241b44e20d3e801c3b6f92b9170aa92b3613c87027c158313f341b1e123c  ./templates/kinds/web-shell/app/src/main/java/bridge/CommandServer.kt
+60a5927ddc441a6e004691777e96964a776b221781c174460fbaa25961ce18f3  ./templates/kinds/web-shell/app/src/main/java/bridge/CommandServer.kt
 fc4be69dd2d5de7b69ba4e8f4634fcc9522e7250e774aa622be504c90569baa7  ./templates/kinds/web-shell/app/src/main/java/bridge/NativeBridge.kt
 1b40c0e2b93c50b65a9e387a16f2cb03cff805b4adf0b41ff30b8b4f1223d8a6  ./templates/kinds/web-shell/app/src/main/java/bridge/PendingReplies.kt
 6f5497f750ca3868eb3e9a68664b73b28f2c313f62d08c190f276db304d54e03  ./templates/kinds/web-shell/app/src/main/java/service/ShellForegroundService.kt
 1267f8b25641ce1eb4945149c81aee2bf0af42e53860369c94ad0cbee2991a21  ./templates/kinds/web-shell/app/src/main/java/web/WebShellScreen.kt
 401fe10a43cc004ebcbea8baf192f4f774ce3588bf53a1dbf46250071ef95616  ./templates/kinds/web-shell/app/src/main/res/xml/network_security_config.xml
 e2d41441d558155e0245a4e78620898bae4ee9fd06e00f03150f9316efac1b32  ./templates/kinds/web-shell/app/src/test/java/bridge/PendingRepliesTest.kt
-2ed5b44ac67a45d0e0245a6026e1cef2feaf5f4bf3dbf8a3295dc8a416b57d55  ./versions/2026-08-api36.toml
+004df25ed2d55a6390bb5083d713357cd846e5457157ac9186ff230da8ea825d  ./versions/2026-08-api36.toml
 a05d5346238ab3f17c4e2b1e18f03481846a76a363a5a3d6501a1fe7cf4e9ab4  ./versions/2026-08.toml
 9de5026b285773b94635c341dc964bf1a640ac76691840d1540d8bca90d531ae  ./workflows/ci.yml
 d4c538692f22a1ed3c0bdc10b62c48ff91250dab0eafe4b6d7a3aa99c21f7d60  ./workflows/emulator.yml

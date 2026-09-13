@@ -32,7 +32,7 @@ serialization = "1.8.0"
 # second catalog silently drifting from this one is not. See
 # runtime/versions/2026-08-api36.toml.
 webkit = "1.12.1"
-ktor = "2.3.11"
+ktor = "3.2.0"
 
 junit = "4.13.2"
 androidxJunit = "1.3.0"

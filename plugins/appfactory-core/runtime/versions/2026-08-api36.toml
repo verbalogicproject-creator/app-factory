@@ -61,7 +61,19 @@ hilt = "2.59"
 hiltNavigationCompose = "1.2.0"
 room = "2.8.3"
 serialization = "1.8.0"
-ktor = "2.3.11"               # not in nowinandroid; unchanged because nothing forces it
+ktor = "3.2.0"                # not in nowinandroid. WAS 2.3.11, and that was wrong in a way
+                              # only a device could show: Ktor 2.3.11 is built against
+                              # kotlinx-coroutines 1.7/1.8, this lattice resolves 1.9.0 (the
+                              # Compose/lifecycle stack forces it), and 1.9 DELETED the
+                              # internal LockFreeLinkedListHead.addLast that ktor-events calls.
+                              # Gradle upgrades the transitive dependency silently, so the app
+                              # COMPILES, PACKAGES, passes every static check -- and throws
+                              # NoSuchMethodError in onCreate. Found by the instrumented rung on
+                              # a physical device, which is the first rung that runs anything.
+                              #
+                              # The lesson is the one this file already teaches, one level
+                              # deeper: "a lattice has a canonical upstream -- a project that
+                              # compiles" is not enough. It must be a project that RUNS.
 
 junit = "4.13.2"
 androidxJunit = "1.3.0"

@@ -7,7 +7,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.cio.CIO
-import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.respondText
@@ -59,7 +59,14 @@ class CommandServer(
     // on its own dispatcher, so the actual JS call is posted across rather than
     // invoked directly.
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var engine: ApplicationEngine? = null
+    // EmbeddedServer, not ApplicationEngine: Ktor 3 changed what embeddedServer()
+    // returns, and the old type still exists, so the mismatch is a compile error
+    // rather than anything subtler. The version it replaced (2.3.11) compiled and
+    // then died at launch with NoSuchMethodError -- it was built against
+    // kotlinx-coroutines 1.7/1.8 and this lattice forces 1.9, where the internal
+    // class Ktor's event system reaches for was deleted. Gradle resolved that
+    // conflict silently and nothing on the static side could see it.
+    private var engine: EmbeddedServer<*, *>? = null
 
     fun start() {
         if (engine != null) return
