@@ -47,12 +47,15 @@ import getpass
 import hashlib
 import json
 import os
+import re
 import secrets
 import shutil
 import stat
 import subprocess
 import sys
 import tempfile
+import time
+from datetime import datetime, timezone
 
 try:
     from cryptography.fernet import Fernet, InvalidToken
@@ -69,6 +72,15 @@ VAULT_PATH = os.path.join(VAULT_DIR, "vault.json")
 KDF_DEFAULTS = {"name": "scrypt", "n": 2 ** 15, "r": 8, "p": 1}
 
 G, R, Y, DIM, OFF = "\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[0m"
+
+# Set from args.passphrase_stdin in main() before dispatch. A module global
+# rather than threading `args` through every call site (load_vault, cmd_init,
+# cmd_keygen, ...) that ultimately calls read_passphrase().
+PASSPHRASE_STDIN = False
+
+SECRET_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
+CANARY_LOG_LINE_RE = re.compile(r"name=(\S+) len=(\d+) sha256=([0-9a-f]{64})")
+MAX_SET_FILE_BYTES = 64 * 1024
 
 
 def ok(m):   print(f"{G}ok{OFF}   {m}")
@@ -117,12 +129,17 @@ def read_passphrase(prompt: str = "vault passphrase: ", confirm: bool = False) -
 
     A silent no-op here is the exact failure that cost five attempts.
     """
+    if PASSPHRASE_STDIN:
+        pw = sys.stdin.readline().rstrip("\n")
+        if not pw:
+            sys.exit("--passphrase-stdin was set but stdin's first line was empty.")
+        return pw
     if not sys.stdin.isatty():
         pw = sys.stdin.readline().rstrip("\n")
         if not pw:
             sys.exit(
                 "No TTY and nothing on stdin.\n"
-                "For automation:  echo -n \"$PASSPHRASE\" | pass_manager.py <cmd> --passphrase-stdin"
+                "For automation:  echo -n \"$PASSPHRASE\" | pass_manager.py --passphrase-stdin <cmd>"
             )
         return pw
     pw = getpass.getpass(prompt)
@@ -297,8 +314,45 @@ def cmd_import_keystore(args) -> int:
     return 0
 
 
+def cmd_set_file(args) -> int:
+    """Store a file's contents as a named secret inside a profile.
+
+    Kept generic on purpose: a Play service-account JSON key, an API restriction
+    file, anything text-shaped that needs to travel through `sync`/`canary` the
+    same way the keystore trio does. The vault stores the raw value; it is never
+    printed.
+    """
+    if not SECRET_NAME_RE.match(args.name):
+        sys.exit(f"invalid secret name '{args.name}' -- must match ^[A-Z][A-Z0-9_]*$")
+    if not os.path.exists(args.file):
+        sys.exit(f"no file at {args.file}")
+
+    size = os.path.getsize(args.file)
+    if size > MAX_SET_FILE_BYTES:
+        sys.exit(f"{args.file} is {size} bytes; set-file refuses anything over "
+                 f"{MAX_SET_FILE_BYTES} bytes (GitHub secrets are not for large blobs)")
+
+    data = open(args.file, "rb").read()
+    try:
+        value = data.decode("utf-8")
+    except UnicodeDecodeError:
+        sys.exit(f"{args.file} is not valid UTF-8 -- set-file only supports text secrets")
+
+    digest = hashlib.sha256(data).hexdigest()
+    payload, pw = load_vault()
+    prof = payload["profiles"].setdefault(args.profile, {})
+    prof.setdefault("secrets", {})[args.name] = {
+        "value": value,
+        "sha256": digest,
+        "added": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    save_vault(payload, pw)
+    ok(f"stored '{args.name}' in profile '{args.profile}' ({size} bytes, sha256 {digest})")
+    return 0
+
+
 def cmd_sync(args) -> int:
-    """Push signing secrets to GitHub Actions, then READ BACK and diff."""
+    """Push signing secrets (and any set-file secrets) to GitHub, then READ BACK."""
     payload, _ = load_vault()
     prof = payload["profiles"].get(args.profile) or sys.exit(f"no profile '{args.profile}'")
     ks = prof.get("keystore") or sys.exit("profile has no keystore; run keygen first")
@@ -318,18 +372,33 @@ def cmd_sync(args) -> int:
         ("SIGNING_KEY_ALIAS", ks["alias"]),
         ("SIGNING_KEYSTORE_PASSWORD", ks["store_password"]),
     ]
+    for name, entry in sorted(prof.get("secrets", {}).items()):
+        items.append((name, entry["value"]))
+
+    failures = 0
+    pushed = []
     for name, value in items:
-        (ok if put(name, value) else bad)(f"{'set' if True else ''} {name}")
+        if put(name, value):
+            ok(f"set {name}")
+            pushed.append(name)
+        else:
+            bad(f"set {name}")
+            failures += 1
 
     # Read back. This proves a NAME exists; only `canary` proves the VALUE arrived.
     names = subprocess.run(["gh", "secret", "list", "-R", repo, "--json", "name",
                             "--jq", ".[].name"], capture_output=True, text=True).stdout.split()
     print()
     for name, _ in items:
-        (ok if name in names else bad)(f"present on GitHub: {name}")
+        if name in names:
+            ok(f"present on GitHub: {name}")
+        else:
+            bad(f"present on GitHub: {name}")
+            failures += 1
     warn("A present NAME is not proof the VALUE is right. GitHub never returns a secret "
          "value. Run `pass_manager.py canary` for the only honest end-to-end check.")
-    return 0
+    print(f"\npushed: {', '.join(pushed) if pushed else '(none)'}")
+    return 1 if failures else 0
 
 
 def cmd_doctor(args) -> int:
@@ -397,6 +466,104 @@ def cmd_doctor(args) -> int:
     return 0
 
 
+def _poll_for_completed_run(repo: str, commit_sha: str, timeout: float, interval: float):
+    """Poll `gh run list` for a completed secret-doctor.yml run at `commit_sha`.
+
+    Full SHA only, argv only (no shell), matching guard_run_list's requirement --
+    a short SHA returns an empty list with exit 0 and no error.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        r = subprocess.run(
+            ["gh", "run", "list", "-R", repo, "--workflow", "secret-doctor.yml",
+             "--commit", commit_sha, "--json", "databaseId,status,conclusion"],
+            capture_output=True, text=True,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            try:
+                runs = json.loads(r.stdout)
+            except json.JSONDecodeError:
+                runs = []
+            for run in runs:
+                if run.get("status") == "completed":
+                    return run.get("databaseId")
+        if time.monotonic() >= deadline:
+            return None
+        time.sleep(interval)
+
+
+def cmd_canary(args) -> int:
+    """The only honest end-to-end proof: push a nonce, dispatch, compare digests.
+
+    Also checks every stored `set-file` secret in the given profile, provided
+    the workflow run's log actually reports it -- this tool cannot make a
+    workflow print something it was never told to print.
+    """
+    repo = args.repo
+    nonce = secrets.token_hex(32)
+    expected_canary_sha = hashlib.sha256(nonce.encode()).hexdigest()
+
+    r = subprocess.run(["gh", "secret", "set", "APPFACTORY_CANARY", "-R", repo],
+                       input=nonce, text=True, capture_output=True)
+    if r.returncode != 0:
+        bad(f"could not set APPFACTORY_CANARY: {r.stderr.strip()}")
+        return 1
+    ok("APPFACTORY_CANARY pushed")
+
+    branch = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                            capture_output=True, text=True).stdout.strip()
+    commit_sha = subprocess.run(["git", "rev-parse", "HEAD"],
+                                capture_output=True, text=True).stdout.strip()
+    if not branch or not commit_sha:
+        sys.exit("could not resolve the current git branch/commit")
+
+    r = subprocess.run(["gh", "workflow", "run", "secret-doctor.yml", "-R", repo,
+                        "--ref", branch], capture_output=True, text=True)
+    if r.returncode != 0:
+        bad(f"could not dispatch secret-doctor.yml: {r.stderr.strip()}")
+        return 1
+    ok(f"dispatched secret-doctor.yml on {branch} ({commit_sha[:12]})")
+
+    run_id = _poll_for_completed_run(repo, commit_sha, timeout=args.timeout, interval=args.interval)
+    if run_id is None:
+        bad(f"no completed run of secret-doctor.yml for commit {commit_sha} within "
+            f"{args.timeout}s")
+        return 1
+
+    log = subprocess.run(["gh", "run", "view", str(run_id), "-R", repo, "--log"],
+                         capture_output=True, text=True).stdout
+
+    reported = {}
+    for line in log.splitlines():
+        m = CANARY_LOG_LINE_RE.search(line)
+        if m:
+            reported[m.group(1)] = m.group(3)
+
+    failures = 0
+    if "APPFACTORY_CANARY" not in reported:
+        bad("APPFACTORY_CANARY: not reported by the run log")
+        failures += 1
+    elif reported["APPFACTORY_CANARY"] == expected_canary_sha:
+        ok("APPFACTORY_CANARY: PASS")
+    else:
+        bad("APPFACTORY_CANARY: FAIL (digest mismatch)")
+        failures += 1
+
+    if args.profile:
+        payload, _ = load_vault()
+        prof = payload["profiles"].get(args.profile, {})
+        for name, entry in sorted(prof.get("secrets", {}).items()):
+            if name not in reported:
+                continue  # tool cannot check what the workflow never printed
+            if reported[name] == entry["sha256"]:
+                ok(f"{name}: PASS")
+            else:
+                bad(f"{name}: FAIL (digest mismatch)")
+                failures += 1
+
+    return 1 if failures else 0
+
+
 def cmd_verify_apk(args) -> int:
     """SDK-free signature verification: read the APK Signing Block directly."""
     here = os.path.dirname(os.path.abspath(__file__))
@@ -421,6 +588,9 @@ def cmd_verify_apk(args) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    p.add_argument("--passphrase-stdin", action="store_true",
+                   help="read the vault passphrase from stdin's first line instead of "
+                        "getpass (for automation; the value never touches argv)")
     sub = p.add_subparsers(dest="cmd")
 
     s = sub.add_parser("init", help="create the vault")
@@ -444,7 +614,13 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--force", action="store_true")
     s.set_defaults(fn=cmd_import_keystore)
 
-    s = sub.add_parser("sync", help="push signing secrets to GitHub, then read back")
+    s = sub.add_parser("set-file", help="store a file's contents as a named secret")
+    s.add_argument("profile")
+    s.add_argument("--name", required=True, help="e.g. PLAY_SERVICE_ACCOUNT_JSON")
+    s.add_argument("--file", required=True)
+    s.set_defaults(fn=cmd_set_file)
+
+    s = sub.add_parser("sync", help="push signing (and set-file) secrets to GitHub, then read back")
     s.add_argument("profile")
     s.add_argument("--repo")
     s.set_defaults(fn=cmd_sync)
@@ -452,6 +628,15 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("doctor", help="probe every known silent-failure mode")
     s.add_argument("--repo")
     s.set_defaults(fn=cmd_doctor)
+
+    s = sub.add_parser("canary", help="PROVE a secret's value arrived, not just its name")
+    s.add_argument("--repo", required=True)
+    s.add_argument("--profile", help="also check every set-file secret in this profile")
+    s.add_argument("--timeout", type=float, default=300.0,
+                   help="seconds to wait for the dispatched run to complete (default 300)")
+    s.add_argument("--interval", type=float, default=10.0,
+                   help="seconds between polls (default 10)")
+    s.set_defaults(fn=cmd_canary)
 
     s = sub.add_parser("verify-apk", help="check an APK's signing cert with no SDK")
     s.add_argument("apk")
@@ -462,8 +647,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    global PASSPHRASE_STDIN
     parser = build_parser()
     args = parser.parse_args()
+    PASSPHRASE_STDIN = getattr(args, "passphrase_stdin", False)
     if not getattr(args, "fn", None):
         parser.print_help()
         return 0

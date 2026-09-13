@@ -100,7 +100,11 @@ success.
 
 The only honest check is the round trip: push a nonce, dispatch `secret-doctor.yml`,
 and compare the SHA-256 the runner reports against the local one. Do that before
-trusting the signing setup.
+trusting the signing setup:
+
+```bash
+python3 .appfactory/bin/pass_manager.py canary --repo <owner/name> --profile <profile>
+```
 
 Set secrets from this session with non-interactive stdin. Never ask the user to type
 one: interactive `gh secret set` fails silently without a TTY.
