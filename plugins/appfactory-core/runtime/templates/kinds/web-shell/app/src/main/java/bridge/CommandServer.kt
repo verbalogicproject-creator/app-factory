@@ -22,6 +22,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import {{APPLICATION_ID}}.BuildConfig
@@ -38,7 +39,10 @@ import {{APPLICATION_ID}}.BuildConfig
  *                          since one HTTP status cannot describe N independent outcomes).
  *   GET  /__sag/observe    ?tail=N -> the last N JSONL lines of
  *                          filesDir/sag/audio-observed.jsonl, as a JSON array.
- *   GET  /__sag/health     {"pkg","version","sha","pageLoaded"}.
+ *   GET  /__sag/health     {"pkg","version","sha","pageLoaded","pageFailures"}.
+ *   GET  /__sag/diagnostics  ?failures=true -> what the page reported: console messages,
+ *                            failed resource loads, HTTP errors. A blank WebView is
+ *                            otherwise indistinguishable from a working one from out here.
  *
  * BINDS 127.0.0.1 ONLY, deliberately, never 0.0.0.0: this exists for a local
  * harness (adb forward, or a process on the same device) to drive the page, not
@@ -110,6 +114,28 @@ class CommandServer(
                         put("version", BuildConfig.VERSION_NAME)
                         put("sha", BuildConfig.GIT_SHA)
                         put("pageLoaded", NativeBridge.pageLoaded)
+                        // pageLoaded is true for a page whose every asset 404'd. This is
+                        // the number that says whether it actually works.
+                        put("pageFailures", NativeBridge.pageLog.failures().size)
+                    }
+                    call.respondText(body.toString(), ContentType.Application.Json)
+                }
+                get("/__sag/diagnostics") {
+                    val onlyFailures = call.request.queryParameters["failures"] == "true"
+                    val entries = NativeBridge.pageLog.let {
+                        if (onlyFailures) it.failures() else it.snapshot()
+                    }
+                    val body = buildJsonArray {
+                        entries.forEach { e ->
+                            add(
+                                buildJsonObject {
+                                    put("kind", e.kind.wire)
+                                    put("message", e.message)
+                                    put("source", e.source ?: "")
+                                    put("line", e.line ?: -1)
+                                },
+                            )
+                        }
                     }
                     call.respondText(body.toString(), ContentType.Application.Json)
                 }

@@ -57,6 +57,16 @@ class WebShellTest {
             val (status, body) = httpGetWithRetry("http://127.0.0.1:${BuildConfig.SAG_PORT}/__sag/health")
             assertEquals(200, status)
             assertTrue("expected pageLoaded:true in $body", body.contains("\"pageLoaded\":true"))
+
+            // The general form of the white-screen guard. pageLoaded says navigation
+            // finished; this says nothing in the page failed. It catches a 404'd asset,
+            // an uncaught exception and a rejected module alike -- not just the one
+            // mount-point bug the assertions above were written for.
+            if (!body.contains("\"pageFailures\":0")) {
+                val (_, diagnostics) =
+                    httpGet("http://127.0.0.1:${BuildConfig.SAG_PORT}/__sag/diagnostics?failures=true")
+                throw AssertionError("the page reported failures: $diagnostics")
+            }
         }
     }
 

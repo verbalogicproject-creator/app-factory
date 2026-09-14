@@ -54,6 +54,13 @@ object NativeBridge {
     var pageLoaded: Boolean = false
 
     /**
+     * Console messages and failed resource loads from the page, served at
+     * GET /__sag/diagnostics. onPageFinished fires for a page whose every script and
+     * stylesheet 404'd, so `pageLoaded` alone says nothing about whether the page works.
+     */
+    val pageLog = PageLog()
+
+    /**
      * Set once, by ShellForegroundService.onCreate(), so observe() has a filesDir
      * to write into without every JS call needing a Context argument the page has
      * no natural way to supply.

@@ -2,6 +2,10 @@ package {{APPLICATION_ID}}.web
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.util.Log
+import android.webkit.ConsoleMessage
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -16,6 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
 import {{APPLICATION_ID}}.bridge.NativeBridge
+import {{APPLICATION_ID}}.bridge.PageLog
+
+private const val TAG = "WebShell"
 
 /**
  * Serves app/src/main/assets/web/ as though it were the site root.
@@ -85,12 +92,69 @@ fun WebShellScreen(modifier: Modifier = Modifier) {
                         // "play" first.
                         settings.mediaPlaybackRequiresUserGesture = false
                         addJavascriptInterface(NativeBridge, "AndroidBridge")
+                        // Without this the page fails silently: a 404'd module script, a
+                        // missing stylesheet and an uncaught TypeError all render the same
+                        // blank screen and none of them reach logcat on their own.
+                        webChromeClient = object : WebChromeClient() {
+                            override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+                                val kind = when (message.messageLevel()) {
+                                    ConsoleMessage.MessageLevel.ERROR -> PageLog.Kind.ERROR
+                                    ConsoleMessage.MessageLevel.WARNING -> PageLog.Kind.WARN
+                                    else -> PageLog.Kind.LOG
+                                }
+                                NativeBridge.pageLog.add(
+                                    PageLog.Entry(
+                                        kind,
+                                        message.message(),
+                                        message.sourceId(),
+                                        message.lineNumber(),
+                                    ),
+                                )
+                                Log.println(
+                                    if (kind.isFailure) Log.ERROR else Log.DEBUG,
+                                    TAG,
+                                    "console:${kind.wire} ${message.message()}" +
+                                        " (${message.sourceId()}:${message.lineNumber()})",
+                                )
+                                return true
+                            }
+                        }
                         webViewClient = object : WebViewClient() {
                             override fun shouldInterceptRequest(
                                 view: WebView,
                                 request: WebResourceRequest,
                             ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
 
+                            override fun onReceivedError(
+                                view: WebView,
+                                request: WebResourceRequest,
+                                error: WebResourceError,
+                            ) {
+                                super.onReceivedError(view, request, error)
+                                record(PageLog.Kind.RESOURCE, "${error.errorCode} ${error.description}", request)
+                            }
+
+                            override fun onReceivedHttpError(
+                                view: WebView,
+                                request: WebResourceRequest,
+                                errorResponse: WebResourceResponse,
+                            ) {
+                                super.onReceivedHttpError(view, request, errorResponse)
+                                record(PageLog.Kind.HTTP, "HTTP ${errorResponse.statusCode}", request)
+                            }
+
+                            private fun record(
+                                kind: PageLog.Kind,
+                                what: String,
+                                request: WebResourceRequest,
+                            ) {
+                                val url = request.url.toString()
+                                NativeBridge.pageLog.add(PageLog.Entry(kind, what, url))
+                                Log.e(TAG, "${kind.wire}: $what for $url")
+                            }
+
+                            /** Fires even when every script and stylesheet on the page
+                             * 404'd, so this is "navigation finished", not "page works". */
                             override fun onPageFinished(view: WebView, url: String?) {
                                 super.onPageFinished(view, url)
                                 NativeBridge.pageLoaded = true
