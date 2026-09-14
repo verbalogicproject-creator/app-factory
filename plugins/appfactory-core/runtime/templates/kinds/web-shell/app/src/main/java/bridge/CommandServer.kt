@@ -16,6 +16,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -43,6 +44,10 @@ import {{APPLICATION_ID}}.BuildConfig
  *   GET  /__sag/diagnostics  ?failures=true -> what the page reported: console messages,
  *                            failed resource loads, HTTP errors. A blank WebView is
  *                            otherwise indistinguishable from a working one from out here.
+ *   GET  /__sag/dom        what the page actually RENDERED -- readyState, the mount
+ *                            element's child count, the head of its innerHTML, the
+ *                            computed body background. Needs nothing from the page, so it
+ *                            works against a bundle that has never heard of this shell.
  *
  * BINDS 127.0.0.1 ONLY, deliberately, never 0.0.0.0: this exists for a local
  * harness (adb forward, or a process on the same device) to drive the page, not
@@ -139,6 +144,15 @@ class CommandServer(
                     }
                     call.respondText(body.toString(), ContentType.Application.Json)
                 }
+                get("/__sag/dom") {
+                    // Interpolated into a JS string literal below, so it is restricted
+                    // to an identifier rather than escaped -- a smaller thing to get right.
+                    val mount = call.request.queryParameters["mount"]
+                        ?.takeIf { it.isNotEmpty() && it.all { c -> c.isLetterOrDigit() || c == '_' || c == '-' } }
+                        ?: "root"
+                    val result = evaluateInPage(domProbe(mount))
+                    call.respondText(result ?: "null", ContentType.Application.Json)
+                }
             }
         }.also { it.start(wait = false) }
     }
@@ -147,6 +161,56 @@ class CommandServer(
         engine?.stop(gracePeriodMillis = 200, timeoutMillis = 1000)
         engine = null
     }
+
+    /**
+     * Evaluates [script] in the page and returns evaluateJavascript's JSON-encoded result.
+     *
+     * Unlike [dispatchOne] this asks nothing of the page -- no __sagNative, no bridge, no
+     * cooperation of any kind -- which is the whole point when the page itself is the
+     * suspect. A bundle that has never heard of this shell still answers.
+     */
+    private suspend fun evaluateInPage(script: String): String? {
+        val done = CompletableDeferred<String?>()
+        mainHandler.post {
+            val webView = NativeBridge.webView
+            if (webView == null) {
+                done.complete(null)
+            } else {
+                webView.evaluateJavascript(script) { value -> done.complete(value) }
+            }
+        }
+        return withTimeoutOrNull(3_000) { done.await() }
+    }
+
+    /**
+     * Answers "did anything render", which is the question a blank screen actually poses.
+     * onPageFinished, a 200 on every asset and an empty console are all compatible with a
+     * page that mounted nothing.
+     */
+    private fun domProbe(mountId: String): String = """
+        (function () {
+          var mount = document.getElementById(${'"'}$mountId${'"'});
+          var body = document.body;
+          return {
+            readyState: document.readyState,
+            title: document.title,
+            url: location.href,
+            mountId: ${'"'}$mountId${'"'},
+            mountPresent: !!mount,
+            mountChildren: mount ? mount.childElementCount : -1,
+            mountHtmlLength: mount ? mount.innerHTML.length : -1,
+            mountHtmlHead: mount ? mount.innerHTML.slice(0, 400) : "",
+            bodyChildren: body ? body.childElementCount : -1,
+            bodyBackground: body ? getComputedStyle(body).backgroundColor : "",
+            bodyScrollHeight: body ? body.scrollHeight : -1,
+            viewport: window.innerWidth + "x" + window.innerHeight,
+            scripts: Array.prototype.map.call(document.scripts, function (s) {
+              return (s.src || "inline") + (s.type ? " [" + s.type + "]" : "");
+            }),
+            stylesheets: document.styleSheets.length
+          };
+        })()
+    """.trimIndent()
 
     /** Delivers one command, correlates the reply by id, and times out at 3s. */
     private suspend fun dispatchOne(command: JsonElement): JsonElement {

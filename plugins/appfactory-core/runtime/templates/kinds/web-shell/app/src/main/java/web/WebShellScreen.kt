@@ -149,8 +149,19 @@ fun WebShellScreen(modifier: Modifier = Modifier) {
                                 request: WebResourceRequest,
                             ) {
                                 val url = request.url.toString()
-                                NativeBridge.pageLog.add(PageLog.Entry(kind, what, url))
-                                Log.e(TAG, "${kind.wire}: $what for $url")
+                                // Browsers request /favicon.ico unprompted, whether or not
+                                // the bundle ships one, so counting it as a failure would
+                                // make pageFailures non-zero for every correct page and
+                                // retire the assertion that depends on it. Recorded, not
+                                // counted -- the information is still there to read.
+                                val actual =
+                                    if (request.url.path == "/favicon.ico") PageLog.Kind.LOG else kind
+                                NativeBridge.pageLog.add(PageLog.Entry(actual, what, url))
+                                Log.println(
+                                    if (actual.isFailure) Log.ERROR else Log.DEBUG,
+                                    TAG,
+                                    "${actual.wire}: $what for $url",
+                                )
                             }
 
                             /** Fires even when every script and stylesheet on the page
