@@ -150,8 +150,16 @@ class CommandServer(
                     val mount = call.request.queryParameters["mount"]
                         ?.takeIf { it.isNotEmpty() && it.all { c -> c.isLetterOrDigit() || c == '_' || c == '-' } }
                         ?: "root"
-                    val result = evaluateInPage(domProbe(mount))
-                    call.respondText(result ?: "null", ContentType.Application.Json)
+                    val page = evaluateInPage(domProbe(mount))
+                    // Both sides of the boundary in one response. A page whose CSS viewport
+                    // is zero while the View that hosts it is 1200px tall is a different
+                    // bug from one where the View itself was never given a height, and
+                    // from out here they look identical.
+                    val host = webViewMetrics()
+                    call.respondText(
+                        """{"host":$host,"page":${page ?: "null"}}""",
+                        ContentType.Application.Json,
+                    )
                 }
             }
         }.also { it.start(wait = false) }
@@ -182,6 +190,35 @@ class CommandServer(
         return withTimeoutOrNull(3_000) { done.await() }
     }
 
+    /** The hosting View's own geometry, read on the main thread. */
+    private suspend fun webViewMetrics(): String {
+        val done = CompletableDeferred<String>()
+        mainHandler.post {
+            val webView = NativeBridge.webView
+            done.complete(
+                if (webView == null) {
+                    """{"attached":false}"""
+                } else {
+                    buildJsonObject {
+                        put("attached", true)
+                        put("width", webView.width)
+                        put("height", webView.height)
+                        put("measuredWidth", webView.measuredWidth)
+                        put("measuredHeight", webView.measuredHeight)
+                        put("visibility", webView.visibility)
+                        put("isLaidOut", webView.isLaidOut)
+                        put("scale", webView.scale)
+                        put("contentHeight", webView.contentHeight)
+                        val parent = webView.parent as? android.view.View
+                        put("parentHeight", parent?.height ?: -1)
+                        put("parentClass", parent?.javaClass?.simpleName ?: "none")
+                    }.toString()
+                },
+            )
+        }
+        return withTimeoutOrNull(3_000) { done.await() } ?: """{"attached":"timeout"}"""
+    }
+
     /**
      * Answers "did anything render", which is the question a blank screen actually poses.
      * onPageFinished, a 200 on every asset and an empty console are all compatible with a
@@ -206,6 +243,13 @@ class CommandServer(
             mountFirstChildHeight: (mount && mount.firstElementChild)
               ? mount.firstElementChild.getBoundingClientRect().height : -1,
             viewport: window.innerWidth + "x" + window.innerHeight,
+            docClientHeight: document.documentElement.clientHeight,
+            docScrollHeight: document.documentElement.scrollHeight,
+            docRectHeight: document.documentElement.getBoundingClientRect().height,
+            visualViewport: window.visualViewport
+              ? window.visualViewport.width + "x" + window.visualViewport.height : "none",
+            screenSize: screen.width + "x" + screen.height,
+            dpr: window.devicePixelRatio,
             // What each viewport unit ACTUALLY resolves to in this WebView. A layout
             // that renders 25kB of DOM into zero height is a unit that resolved to
             // zero, and which one is a fact about the engine, not something to assume:
