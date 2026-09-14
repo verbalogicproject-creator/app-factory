@@ -2,7 +2,7 @@
 9bc2807baef16fd7a1fc1a656664d70556cb4f85aa3918a9e3cb4c622e9b642c  ./bin/contract.py
 27c30062d9c26f619b8d15e1ce0899fd95717d6c38754829015055673b64733f  ./bin/ladder.py
 5583dfc109975f0bdbc920c9519ad4e8e97a17594928730da67d1e09a08024ce  ./bin/pass_manager.py
-b73039ce42c9e7af8e5e4f0268b1791c3972eb1e8abdfcc840f62fcc56302e98  ./bin/scaffold.py
+8558ad037b001f9ae459855a32f115269cbf009891a012441564442404a69532  ./bin/scaffold.py
 f931e493d285a6fe4d54aa9074616e02dc425057dcdf10405c9da49664760bc0  ./bin/verify_mapping.py
 16fd1eb36764d92454fdb14a78ca711bfeef6eb9cce7d09f9149e50a2f1cbf44  ./scripts/ci-arm-toolchain.sh
 600ff19982b72058a3677fe5d750112ac9e29155539d934c51f4be0cec20da7e  ./scripts/device-instrument.sh
@@ -225,7 +225,7 @@ bdecf875b6868cbcbd36a1f85eedf0832f358ff28092c5797ed645f7edce77d9  ./templates/gr
 5388ca267f1803aad2c84c59a083174f80cc39e8bb6ba12a6a2cce9a313fa92c  ./templates/gradle/proguard-test-rules.pro
 1bda93f2cb6f1011d701385e20d1b31c9d2011097a3670579a9617fc82eca827  ./templates/gradle/root.build.gradle.kts
 e74a0dec6ee28d1f7239688be6c6f9910dfb0da1e4d5678c0c89ff479d9694c7  ./templates/gradle/settings.gradle.kts
-ba70ad94ce4e6d00edb29a4e5203237667ab4e762a5330d7420c7d9663c37123  ./templates/kinds/web-shell/app/src/androidTest/java/WebShellTest.kt
+003e81386fd9969894811b3d0f95e8457afe38862a3969cebcd5172d3f34196d  ./templates/kinds/web-shell/app/src/androidTest/java/WebShellTest.kt
 06dc70fe36a40488808ac05005b2ba77385be1bc6fb25350786c79a28d13e576  ./templates/kinds/web-shell/app/src/main/AndroidManifest.xml
 86b68cb29dc9528e4e2361361747b9d631759c26841f230dfa3f4d44eb5740b1  ./templates/kinds/web-shell/app/src/main/java/MainActivity.kt
 f8ba61a86c04307ee5cf5fe2db8f33b971b3c61f726b54dc8049be79ae1ac966  ./templates/kinds/web-shell/app/src/main/java/bridge/CommandServer.kt

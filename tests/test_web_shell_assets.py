@@ -20,7 +20,7 @@ import re
 
 import pytest
 
-from tests.conftest import PLUGIN, ROOT
+from tests.conftest import PLUGIN, ROOT, load_module
 
 TEMPLATE = (
     PLUGIN
@@ -147,3 +147,55 @@ def test_the_instrumented_test_asserts_assets_loaded_not_just_the_title():
     ).read_text(encoding="utf-8")
     assert "__bundleAssetsResolved" in test_src, "nothing asserts the bundle's JS ran"
     assert "getComputedStyle" in test_src, "nothing asserts the bundle's CSS applied"
+
+
+# ── the generated test must be able to pass for the project it is generated into ──
+
+def test_scaffold_reads_the_title_from_the_bundle():
+    """A generated project that ships a test asserting the FIXTURE's title fails on its
+    first real run with nothing wrong with the app -- which teaches the reader to ignore
+    the suite. G1c found exactly this: 'expected SAG Web Shell Test Bundle but was
+    SAG-synth'."""
+    scaffold = load_module("scaffold", PLUGIN / "runtime" / "bin" / "scaffold.py")
+    assert scaffold.bundle_title(str(ROOT / "tests" / "data" / "web")) == "SAG Web Shell Test Bundle"
+
+
+def test_bundle_title_survives_a_bundler_formatted_head(tmp_path):
+    (tmp_path / "index.html").write_text(
+        '<!doctype html>\n<html>\n  <head>\n    <title>\n      My  App\n    </title>\n', encoding="utf-8"
+    )
+    scaffold = load_module("scaffold", PLUGIN / "runtime" / "bin" / "scaffold.py")
+    assert scaffold.bundle_title(str(tmp_path)) == "My App"
+
+
+def test_bundle_title_is_empty_when_absent_so_the_app_name_is_used(tmp_path):
+    (tmp_path / "index.html").write_text("<html><body>no title</body></html>", encoding="utf-8")
+    scaffold = load_module("scaffold", PLUGIN / "runtime" / "bin" / "scaffold.py")
+    assert scaffold.bundle_title(str(tmp_path)) == ""
+    assert scaffold.substitutions("a.b", "Fallback Name", kind="web-shell")["{{WEB_TITLE}}"] == "Fallback Name"
+
+
+def test_the_instrumented_test_carries_no_fixture_constants_outside_the_fixture_test():
+    """The bundle-agnostic tests must not assert anything only the fixture provides."""
+    src = (
+        PLUGIN / "runtime" / "templates" / "kinds" / "web-shell"
+        / "app" / "src" / "androidTest" / "java" / "WebShellTest.kt"
+    ).read_text(encoding="utf-8")
+    fixture_test = src[src.index("fun fixtureAbsoluteAssetPathsResolve"):]
+    others = src[: src.index("fun fixtureAbsoluteAssetPathsResolve")]
+    for marker in ("__bundleAssetsResolved", "rgb(0, 128, 64)"):
+        assert marker in fixture_test, f"{marker} should still be covered for the fixture"
+        assert marker not in others, f"{marker} is fixture-only and must not gate a real bundle"
+    assert 'EXPECTED_TITLE = "{{WEB_TITLE}}"' in src, "the title must come from the bundle"
+    assert "assumeTrue" in fixture_test, "the fixture test must skip, not fail, on a real bundle"
+
+
+def test_the_layout_regression_is_asserted_on_device():
+    """100vh resolving to 0 is what made a correct page invisible. Nothing cheaper than
+    the instrumented rung can see it."""
+    src = (
+        PLUGIN / "runtime" / "templates" / "kinds" / "web-shell"
+        / "app" / "src" / "androidTest" / "java" / "WebShellTest.kt"
+    ).read_text(encoding="utf-8")
+    assert '"100vh"' in src and "bodyScrollHeight" in src
+    assert 'host.getInt("height")' in src, "the hosting View's height must be asserted too"

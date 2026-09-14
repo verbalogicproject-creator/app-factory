@@ -83,6 +83,23 @@ def die(m): sys.exit(f"{R}ERROR{OFF} {m}")
 def note(m): print(f"{DIM}     {m}{OFF}")
 
 
+def bundle_title(web_dir: str) -> str:
+    """The <title> of the bundle's index.html, or "" if it has none.
+
+    Deliberately a regex and not a parser: this reads one tag out of a built file to fill
+    a test constant, and taking an HTML-parser dependency for that would be the larger
+    mistake. Falls back to the app name, and the test it feeds is written so a wrong title
+    fails loudly rather than silently passing.
+    """
+    try:
+        with open(os.path.join(web_dir, "index.html"), encoding="utf-8", errors="replace") as fh:
+            head = fh.read(8192)
+    except OSError:
+        return ""
+    m = re.search(r"<title[^>]*>(.*?)</title>", head, re.IGNORECASE | re.DOTALL)
+    return " ".join(m.group(1).split()) if m else ""
+
+
 def substitutions(
     application_id: str,
     app_name: str,
@@ -90,6 +107,7 @@ def substitutions(
     deeplink_scheme: str = "",
     sag_port: int = DEFAULT_SAG_PORT,
     with_native: bool = False,
+    web_title: str = "",
 ) -> dict[str, str]:
     # The class name derives from the app name, not the package, so it stays
     # readable when the package is a reverse domain.
@@ -125,6 +143,10 @@ def substitutions(
         "{{WITH_NATIVE}}": "true" if with_native else "false",
         "{{WEB_SHELL_DEPENDENCIES}}": web_shell_dependencies,
         "{{WEB_SHELL_BUILDCONFIG}}": web_shell_buildconfig,
+        # The instrumented test asserts the page's <title>. Read from the bundle being
+        # scaffolded, because a generated project that ships a test asserting the FIXTURE's
+        # title fails on its first real run and teaches the reader to ignore it.
+        "{{WEB_TITLE}}": web_title or app_name,
     }
 
 
@@ -282,6 +304,7 @@ def main() -> int:
         deeplink_scheme=deeplink_scheme,
         sag_port=DEFAULT_SAG_PORT,
         with_native=with_native,
+        web_title=bundle_title(web_dir) if kind == "web-shell" and web_dir else "",
     )
     subs["{{MIN_SDK}}"] = str(min_sdk)
     subs["{{TARGET_SDK}}"] = str(target_sdk)
@@ -293,6 +316,7 @@ def main() -> int:
     note(f"minSdk/target  {min_sdk}/{target_sdk}")
     if kind == "web-shell":
         note(f"web bundle     {web_dir}")
+        note(f"page title     {subs['{{WEB_TITLE}}']}")
         note(f"deeplink       {subs['{{DEEPLINK_SCHEME}}']}://")
     print()
 
