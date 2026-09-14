@@ -3,6 +3,7 @@ package {{APPLICATION_ID}}.web
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
+import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -85,8 +86,30 @@ fun WebShellScreen(modifier: Modifier = Modifier) {
                         .addPathHandler("/", BundleRootPathHandler(ctx))
                         .build()
                     WebView(ctx).apply {
+                        // WITHOUT THIS THE PAGE HAS NO HEIGHT. AndroidView gives a
+                        // factory-created View WRAP_CONTENT layout params, so the WebView
+                        // is measured AT_MOST: it asks the content how tall it wants to
+                        // be, the content answers with a viewport-relative height, and the
+                        // viewport is not established yet -- so every viewport unit,
+                        // including 100% and 100vh, resolves to 0. The page renders
+                        // perfectly into a box of zero height: correct DOM, clean console,
+                        // green ladder, blank screen.
+                        //
+                        // Measured on the device that had it: 100vh, 100dvh, 100svh,
+                        // 100lvh and 100% all returned 0 while window.innerHeight said
+                        // 793. Found already solved in verbalogix-companion's
+                        // EngineWebView.kt, which has set these three since it was written.
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                        )
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
+                        // Honour the bundle's <meta name="viewport">. Left at the default
+                        // false, the tag is ignored and the page is laid out against the
+                        // WebView's own width instead of device-width.
+                        settings.useWideViewPort = true
+                        settings.loadWithOverviewMode = true
                         // The whole point of this shell is a page that plays audio on
                         // its own, driven by commands rather than a human tapping
                         // "play" first.
@@ -156,7 +179,8 @@ fun WebShellScreen(modifier: Modifier = Modifier) {
                                 // counted -- the information is still there to read.
                                 val actual =
                                     if (request.url.path == "/favicon.ico") PageLog.Kind.LOG else kind
-                                NativeBridge.pageLog.add(PageLog.Entry(actual, what, url))
+                                val scope = if (request.isForMainFrame) "main-frame" else "subresource"
+                                NativeBridge.pageLog.add(PageLog.Entry(actual, "$what ($scope)", url))
                                 Log.println(
                                     if (actual.isFailure) Log.ERROR else Log.DEBUG,
                                     TAG,
