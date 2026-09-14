@@ -203,7 +203,28 @@ class CommandServer(
             bodyChildren: body ? body.childElementCount : -1,
             bodyBackground: body ? getComputedStyle(body).backgroundColor : "",
             bodyScrollHeight: body ? body.scrollHeight : -1,
+            mountFirstChildHeight: (mount && mount.firstElementChild)
+              ? mount.firstElementChild.getBoundingClientRect().height : -1,
             viewport: window.innerWidth + "x" + window.innerHeight,
+            // What each viewport unit ACTUALLY resolves to in this WebView. A layout
+            // that renders 25kB of DOM into zero height is a unit that resolved to
+            // zero, and which one is a fact about the engine, not something to assume:
+            // dvh/svh/lvh are widely recommended as the FIX for vh on Android, so
+            // guessing which is broken here would be guessing against the advice.
+            units: (function () {
+              var probe = document.createElement("div");
+              probe.style.cssText = "position:absolute;left:-9999px;top:0;width:1px;";
+              document.body.appendChild(probe);
+              var out = {};
+              ["100vh", "100dvh", "100svh", "100lvh", "100%"].forEach(function (u) {
+                probe.style.height = "0px";
+                probe.style.height = u;
+                out[u] = probe.getBoundingClientRect().height;
+              });
+              document.body.removeChild(probe);
+              out.supportsDvh = !!(window.CSS && CSS.supports && CSS.supports("height", "100dvh"));
+              return out;
+            })(),
             scripts: Array.prototype.map.call(document.scripts, function (s) {
               return (s.src || "inline") + (s.type ? " [" + s.type + "]" : "");
             }),

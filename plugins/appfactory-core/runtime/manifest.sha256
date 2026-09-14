@@ -228,7 +228,7 @@ e74a0dec6ee28d1f7239688be6c6f9910dfb0da1e4d5678c0c89ff479d9694c7  ./templates/gr
 ba70ad94ce4e6d00edb29a4e5203237667ab4e762a5330d7420c7d9663c37123  ./templates/kinds/web-shell/app/src/androidTest/java/WebShellTest.kt
 06dc70fe36a40488808ac05005b2ba77385be1bc6fb25350786c79a28d13e576  ./templates/kinds/web-shell/app/src/main/AndroidManifest.xml
 86b68cb29dc9528e4e2361361747b9d631759c26841f230dfa3f4d44eb5740b1  ./templates/kinds/web-shell/app/src/main/java/MainActivity.kt
-649a34f993f6a47f96ab6521f8358daa6f07cca1d0be326f7871da5aca254cad  ./templates/kinds/web-shell/app/src/main/java/bridge/CommandServer.kt
+054a681ff24113d54c04398d42d454f68ebc4cad75eeb7df0116763eab208b2c  ./templates/kinds/web-shell/app/src/main/java/bridge/CommandServer.kt
 ef5164b5535dcdff108eb9500384cf9b6664c56c7f1ee6eddf9054a9446cb6d2  ./templates/kinds/web-shell/app/src/main/java/bridge/NativeBridge.kt
 905c0f447c2d51c0193ae834a514c70df4e529125f3b87f3df071397a28be8fa  ./templates/kinds/web-shell/app/src/main/java/bridge/PageLog.kt
 1b40c0e2b93c50b65a9e387a16f2cb03cff805b4adf0b41ff30b8b4f1223d8a6  ./templates/kinds/web-shell/app/src/main/java/bridge/PendingReplies.kt
