@@ -77,6 +77,22 @@ example: the rung exists, is wired, and caught the Ktor crash.
 | # | What | Size |
 |---|---|---|
 | L1 | Reconcile the 15 entries against the tree; close what is closed, keep the evidence | M |
+| L2 | **Mine `verbalogix-companion` for device knowledge** | M |
+
+`/storage/emulated/0/Download/claude-projects/verbalogix-companion` is in NEITHER documented
+root, and has now held the answer to two problems this project derived the hard way: the Ktor
+1.8/1.9 coroutines skew, and the WebView layout-params bug that produced a zero-height page.
+
+Be precise about what it is. It is **not** a model of a well-built repo by this factory's
+standards: 13 Kotlin files, **zero tests**, and not under version control. What it is, is a
+body of Android integration written against this exact device and proven by use —
+`EngineWebView.kt` (WebView in Compose, done right), `LocalHttpServer.kt` and `TokenStore.kt`
+(loopback HTTP with auth), `accessibility/` (a real AccessibilityService, gesture dispatch,
+node serialisation), `capture/ScreenCaptureService.kt`, and `apm/AdvancedProtectionDetector.kt`.
+
+So extract the **facts**, not the structure: each one becomes a template line, a preflight
+check, or a lattice entry with its rationale. Searching this path belongs in the mode doctrine
+too — twice is a pattern, not bad luck.
 
 This is the drift the repo warns about everywhere else, in the repo's own backlog. Worth
 noting rather than quietly fixing: a log of known gaps that overstates the gaps is still a
