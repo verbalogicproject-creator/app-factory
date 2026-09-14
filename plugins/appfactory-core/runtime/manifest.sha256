@@ -225,10 +225,10 @@ bdecf875b6868cbcbd36a1f85eedf0832f358ff28092c5797ed645f7edce77d9  ./templates/gr
 5388ca267f1803aad2c84c59a083174f80cc39e8bb6ba12a6a2cce9a313fa92c  ./templates/gradle/proguard-test-rules.pro
 1bda93f2cb6f1011d701385e20d1b31c9d2011097a3670579a9617fc82eca827  ./templates/gradle/root.build.gradle.kts
 e74a0dec6ee28d1f7239688be6c6f9910dfb0da1e4d5678c0c89ff479d9694c7  ./templates/gradle/settings.gradle.kts
-003e81386fd9969894811b3d0f95e8457afe38862a3969cebcd5172d3f34196d  ./templates/kinds/web-shell/app/src/androidTest/java/WebShellTest.kt
+1f489959976d20c871a7264b2f3d9c7dcf724fc8ab6d5fdf1b763a872b7f7c52  ./templates/kinds/web-shell/app/src/androidTest/java/WebShellTest.kt
 06dc70fe36a40488808ac05005b2ba77385be1bc6fb25350786c79a28d13e576  ./templates/kinds/web-shell/app/src/main/AndroidManifest.xml
 86b68cb29dc9528e4e2361361747b9d631759c26841f230dfa3f4d44eb5740b1  ./templates/kinds/web-shell/app/src/main/java/MainActivity.kt
-f8ba61a86c04307ee5cf5fe2db8f33b971b3c61f726b54dc8049be79ae1ac966  ./templates/kinds/web-shell/app/src/main/java/bridge/CommandServer.kt
+87fbbe4be4f8fe467447eb025fcb69abbf460fd15858e08ccb502bdf396239d7  ./templates/kinds/web-shell/app/src/main/java/bridge/CommandServer.kt
 ef5164b5535dcdff108eb9500384cf9b6664c56c7f1ee6eddf9054a9446cb6d2  ./templates/kinds/web-shell/app/src/main/java/bridge/NativeBridge.kt
 905c0f447c2d51c0193ae834a514c70df4e529125f3b87f3df071397a28be8fa  ./templates/kinds/web-shell/app/src/main/java/bridge/PageLog.kt
 1b40c0e2b93c50b65a9e387a16f2cb03cff805b4adf0b41ff30b8b4f1223d8a6  ./templates/kinds/web-shell/app/src/main/java/bridge/PendingReplies.kt

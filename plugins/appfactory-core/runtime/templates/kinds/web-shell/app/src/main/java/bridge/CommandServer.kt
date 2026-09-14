@@ -286,13 +286,24 @@ class CommandServer(
             put("command", command)
         }
         mainHandler.post {
+            // deliver() takes a JSON **STRING**, not an object. A WebView bridge only
+            // carries strings across reliably, so that is the contract the page
+            // documents and the page parses it with JSON.parse. Interpolating the
+            // envelope as a JS OBJECT literal made that JSON.parse receive
+            // "[object Object]" and throw -- inside the page, where nothing could see
+            // it until the shell learned to report console errors.
+            //
+            // JsonPrimitive(String).toString() emits a quoted, escaped literal, which
+            // is why no hand-rolled quoting appears here.
+            //
             // U+2028/U+2029 are valid inside a JSON string but were invalid inside a
             // JS string literal before ES2019 -- stripped defensively since the
-            // command payload is caller-controlled and this is not parsed as JSON by
-            // the WebView, it is evaluated as a JS expression.
-            val js = envelope.toString().replace(" ", "").replace(" ", "")
+            // command payload is caller-controlled and this is evaluated as JS.
+            val payload = JsonPrimitive(
+                envelope.toString().replace(" ", "").replace(" ", ""),
+            ).toString()
             NativeBridge.webView?.evaluateJavascript(
-                "window.__sagNative && window.__sagNative.deliver($js)",
+                "window.__sagNative && window.__sagNative.deliver($payload)",
                 null,
             )
         }

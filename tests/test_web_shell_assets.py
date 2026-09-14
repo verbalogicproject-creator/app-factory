@@ -199,3 +199,31 @@ def test_the_layout_regression_is_asserted_on_device():
     ).read_text(encoding="utf-8")
     assert '"100vh"' in src and "bodyScrollHeight" in src
     assert 'host.getInt("height")' in src, "the hosting View's height must be asserted too"
+
+
+def test_the_shell_delivers_a_json_string_not_an_object():
+    """`deliver` takes a JSON STRING -- a WebView bridge carries strings reliably and the
+    page parses with JSON.parse. Interpolating the envelope as a JS object literal made
+    real pages throw `"[object Object]" is not valid JSON` inside the page, where nothing
+    could see it. Both the shell AND the fixture had this wrong, so they agreed."""
+    src = (PLUGIN / "runtime" / "templates" / "kinds" / "web-shell" / "app" / "src"
+           / "main" / "java" / "bridge" / "CommandServer.kt").read_text(encoding="utf-8")
+    assert "deliver($payload)" in src, "the delivered payload must be the quoted literal"
+    assert "JsonPrimitive(" in src.split("val payload")[1][:200], (
+        "the payload must be encoded as a JSON string literal, not interpolated raw"
+    )
+    assert "deliver($js)" not in src, "the raw-object interpolation must be gone"
+
+
+def test_the_fixture_parses_the_payload_as_a_string():
+    """A fixture that takes an object cannot detect a shell that sends one."""
+    js = (ROOT / "tests" / "data" / "web" / "assets" / "app-D4f8a1c2.js").read_text(encoding="utf-8")
+    assert "deliver: function (json)" in js
+    assert "JSON.parse(json)" in js
+
+
+def test_the_command_path_is_covered_on_device():
+    src = (PLUGIN / "runtime" / "templates" / "kinds" / "web-shell" / "app" / "src"
+           / "androidTest" / "java" / "WebShellTest.kt").read_text(encoding="utf-8")
+    assert "aCommandRoundTripsThroughTheBridge" in src
+    assert "is not valid JSON" in src, "the round-trip must assert the page did not throw"

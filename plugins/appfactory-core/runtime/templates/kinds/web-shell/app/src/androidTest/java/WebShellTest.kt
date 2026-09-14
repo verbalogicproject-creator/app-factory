@@ -106,6 +106,60 @@ class WebShellTest {
         }
     }
 
+    /**
+     * The command path, end to end, through the real HTTP surface.
+     *
+     * Gated on a bridge being present, because a bundle that never installs
+     * `window.__sagNative` legitimately has no command path and "no page answered" is
+     * then the correct reply rather than a fault.
+     *
+     * This is the assertion that was missing when the shell delivered the envelope as a
+     * JS OBJECT while every real page parses a JSON STRING. The fixture had the same bug,
+     * so the two agreed and nothing failed -- a contract can only be tested against
+     * something that did not learn it from the same place.
+     */
+    @Test
+    fun aCommandRoundTripsThroughTheBridge() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            waitForPageLoad()
+            assumeTrue(
+                "this bundle installs no __sagNative; it has no command path to test",
+                evaluateJs(scenario, "typeof window.__sagNative") == "\"object\"",
+            )
+
+            val (status, body) = httpPost(sag("/__sag/command"), """{"type":"noteOn","note":"C3","velocity":0.5}""")
+            assertEquals("POST /__sag/command was not accepted: $body", 200, status)
+            assertTrue(
+                "the page did not answer the command: $body",
+                !body.contains("no page answered"),
+            )
+
+            // Whatever the page replies, it must not have thrown while parsing what we sent.
+            val (_, diagnostics) = httpGet(sag("/__sag/diagnostics?failures=true"))
+            assertTrue(
+                "delivering the command made the page throw: $diagnostics",
+                !diagnostics.contains("is not valid JSON"),
+            )
+        }
+    }
+
+    private fun httpPost(url: String, body: String): Pair<Int, String> {
+        val conn = URL(url).openConnection() as HttpURLConnection
+        return try {
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            conn.connectTimeout = 5_000
+            conn.readTimeout = 10_000
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.outputStream.use { it.write(body.toByteArray()) }
+            val code = conn.responseCode
+            val stream = if (code < 400) conn.inputStream else conn.errorStream
+            code to (stream?.bufferedReader()?.readText() ?: "")
+        } finally {
+            conn.disconnect()
+        }
+    }
+
     /** Runs [script] in the page and returns evaluateJavascript's raw, JSON-encoded result. */
     private fun evaluateJs(scenario: ActivityScenario<MainActivity>, script: String): String? {
         val latch = CountDownLatch(1)

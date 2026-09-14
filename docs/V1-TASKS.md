@@ -48,7 +48,8 @@ Ordered by how badly each breaks the stated use case.
 | # | What | Size | Status verified 2026-09-13 |
 |---|---|---|---|
 | G1c | Run the instrumented rung on the device | S | **RAN 2026-09-14 on NX779J / API 35. G1 CONFIRMED.** Every number that was zero is right: `host.height` 2381 (`isLaidOut: true`), `100vh`/`100dvh`/`100%` all 793.67, `bodyScrollHeight` 794, `pageFailures` 0, diagnostics empty. Screenshot shows the full synth UI rendering. 4 tests ran, 3 passed. The 1 failure was **the template's fault, not the app's** — `expected:<"SAG Web Shell Test Bundle"> but was:<"SAG-synth">`. Fixed; **needs one more device run to confirm green.** |
-| G1d | Re-run the instrumented rung after the fixture-coupling fix | S | The generated test now reads its title from the scaffolded bundle and skips the fixture-only assertions. Rebuilt but **not yet re-run on the device** — wifi ended first. |
+| G1d | Re-run the instrumented rung after the fixture-coupling fix | S | **DONE 2026-09-14. `OK (6 tests), failures=0`** on NX779J/API 35. `theBundleRendersIntoANonZeroBox` passed; `fixtureAbsoluteAssetPathsResolve` correctly skipped with *"not the test fixture"*. Receipt `2026-09-14T224522Z-run.json`. |
+| G1e | Re-run once more with the command round-trip test | S | **PENDING A DEVICE.** Built; the device went offline before the run. |
 | G1b | Preflight check for absolute asset paths | S | **OPEN.** The factory now has 13 regression tests over the mount, but a *generated* project has no check that its own bundle's absolute paths resolve. That is still worth ~25 lines + fixtures. No maintained linter exists. |
 | G2 | `runtime/bin/webdetect.py` | M | **OPEN.** No such file. Vendor `@vercel/frameworks` (Apache-2.0) as JSON for `buildCommand` + `outputDirectory`. Netlify's `framework-info` is deprecated; `@netlify/build-info` is the fallback. |
 | G3 | `adopt` for an existing repo | M | **OPEN.** `scaffold.py` has no `adopt`; `--force` overwrites with no merge. Nothing maintained does template-overlay onto a foreign repo (`copier adopt` is an open issue), so this is ours — thin, and it refuses rather than guesses. |
@@ -73,7 +74,9 @@ phone, and the telemetry built to measure it has **never produced a reading on a
 | A1 | **Audio baseline on the phone** via `/__sag/observe` | **Rides with G1c** — same device, same sitting |
 | A2 | `wet: 0` effect-bypass cost | Only if A1 shows effects-dependent underruns |
 | A3 | Faust/Elementary spike | Only if A1 shows exhausted headroom; needs its own ADR |
-| A4 | Register `window.__sagNative` in the shipped bundle | After A1. Without it `/__sag/command` cannot reach the synth — an agent can observe it but not play it |
+| ~~A4~~ | ~~Register `window.__sagNative`~~ — **WITHDRAWN, THE CLAIM WAS WRONG.** `native-bridge.ts:75` installs it and `engine.ts:135` wires the command bridge in the production branch. I reported a false negative from a `head -5`-truncated grep that matched only test files. | — |
+| A4b | **The instrument surface emits no telemetry** | Real gap, narrower. `observeAudio()` is called only in `DebugApp.tsx:194`, so `/__sag/observe` is empty on the synth surface. A1 needs this, or needs the `#debug` surface reachable from the shell |
+| A4c | Nothing registers an `onNativeIntent` listener | `native-bridge.ts:56` exports it; no caller. The shell's deep link reaches the page and goes nowhere |
 
 ## Open — V: finishing v1.0.0
 

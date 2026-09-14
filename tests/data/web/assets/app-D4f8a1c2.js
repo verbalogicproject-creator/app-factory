@@ -10,9 +10,14 @@
 (function () {
   window.__sagNative = {
     // Called by CommandServer via evaluateJavascript as
-    // window.__sagNative.deliver({id, command}). Answers through the
-    // AndroidBridge.postResult({id, result}) JavascriptInterface method.
-    deliver: function (envelope) {
+    // window.__sagNative.deliver('{"id":..,"command":..}'). The argument is a JSON
+    // STRING, not an object: a WebView bridge only carries strings reliably, so the
+    // real page parses it with JSON.parse and so does this double.
+    //
+    // This fixture used to take an object, which agreed with the shell's own bug and
+    // disagreed with every real bundle -- both sides green, the contract wrong.
+    deliver: function (json) {
+      var envelope = JSON.parse(json);
       var reply = { id: envelope.id, result: { status: 'accepted' } };
       if (window.AndroidBridge && window.AndroidBridge.postResult) {
         window.AndroidBridge.postResult(JSON.stringify(reply));
