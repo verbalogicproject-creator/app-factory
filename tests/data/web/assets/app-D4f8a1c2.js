@@ -2,6 +2,11 @@
 // contract WebShellScreen/NativeBridge/CommandServer are built against (see
 // runtime/templates/kinds/web-shell/), so the scaffold's own androidTest
 // (WebShellTest.kt) can pass against it without a real synth ever existing.
+//
+// Served from an ABSOLUTE /assets/ path, like a bundler's output. If the asset
+// handler is not mounted at the bundle root this file 404s, nothing below runs,
+// and __bundleAssetsResolved stays undefined -- while document.title, which the
+// test used to check on its own, still reads correctly off the HTML.
 (function () {
   window.__sagNative = {
     // Called by CommandServer via evaluateJavascript as
@@ -20,4 +25,6 @@
       }
     },
   };
+  // The assertion the white-screen bug would have failed.
+  window.__bundleAssetsResolved = true;
 })();

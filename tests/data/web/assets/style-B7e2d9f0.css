@@ -1,0 +1,4 @@
+/* Loaded over an absolute /assets/ path. The instrumented test reads this exact colour
+   back with getComputedStyle, so a 404 here is a failure rather than a silent
+   fallback to the UA default. */
+#status { color: rgb(0, 128, 64); }

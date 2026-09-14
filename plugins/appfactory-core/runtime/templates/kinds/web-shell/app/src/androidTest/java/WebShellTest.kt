@@ -14,10 +14,17 @@ import org.junit.runner.RunWith
 
 /**
  * The rung that answers "does the web shell actually work end to end": page
- * loads, JS runs, and the loopback HTTP surface a harness would actually drive
- * reports the page as up. Run against the test bundle at tests/data/web/
- * (scaffold.py --kind web-shell --web-dir tests/data/web), whose index.html sets
- * <title>SAG Web Shell Test Bundle</title> for exactly this assertion.
+ * loads, its ASSETS resolve, JS runs, and the loopback HTTP surface a harness would
+ * actually drive reports the page as up. Run against the test bundle at tests/data/web/
+ * (scaffold.py --kind web-shell --web-dir tests/data/web).
+ *
+ * The asset assertions are the load-bearing ones and they are newer than the rest.
+ * document.title is read straight out of the HTML, so it is correct even when every
+ * referenced script and stylesheet 404s -- which is exactly what happened while the
+ * asset handler was mounted below the bundle root: a blank page that passed all 21
+ * static checks and this test. The fixture therefore references its JS and CSS by
+ * ABSOLUTE, hashed paths the way a bundler does, and the two assertions below fail if
+ * either 404s.
  */
 @RunWith(AndroidJUnit4::class)
 class WebShellTest {
@@ -27,22 +34,48 @@ class WebShellTest {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             waitForPageLoad()
 
-            val titleLatch = CountDownLatch(1)
-            var title: String? = null
-            scenario.onActivity {
-                NativeBridge.webView?.evaluateJavascript("document.title") { value ->
-                    // evaluateJavascript's callback value is JSON-quoted.
-                    title = value?.trim('"')
-                    titleLatch.countDown()
-                }
-            }
-            assertTrue("document.title callback never fired", titleLatch.await(10, TimeUnit.SECONDS))
-            assertEquals(EXPECTED_TITLE, title)
+            // evaluateJavascript's result is JSON-encoded, so a string comes back quoted.
+            assertEquals("\"$EXPECTED_TITLE\"", evaluateJs(scenario, "document.title"))
+
+            // Set by /assets/app-<hash>.js. Undefined if that absolute path did not resolve.
+            assertEquals(
+                "the bundle's absolute-path script did not run -- asset handler mount point?",
+                "true",
+                evaluateJs(scenario, "window.__bundleAssetsResolved === true"),
+            )
+
+            // Declared in /assets/style-<hash>.css. The UA default would be rgb(0, 0, 0).
+            assertEquals(
+                "the bundle's absolute-path stylesheet did not apply",
+                "\"rgb(0, 128, 64)\"",
+                evaluateJs(
+                    scenario,
+                    "getComputedStyle(document.getElementById('status')).color",
+                ),
+            )
 
             val (status, body) = httpGetWithRetry("http://127.0.0.1:${BuildConfig.SAG_PORT}/__sag/health")
             assertEquals(200, status)
             assertTrue("expected pageLoaded:true in $body", body.contains("\"pageLoaded\":true"))
         }
+    }
+
+    /** Runs [script] on the WebView's thread and returns evaluateJavascript's raw,
+     * JSON-encoded result -- so a string comes back quoted. */
+    private fun evaluateJs(
+        scenario: ActivityScenario<MainActivity>,
+        script: String,
+    ): String? {
+        val latch = CountDownLatch(1)
+        var result: String? = null
+        scenario.onActivity {
+            NativeBridge.webView?.evaluateJavascript(script) { value ->
+                result = value
+                latch.countDown()
+            }
+        }
+        assertTrue("evaluateJavascript callback never fired for: $script", latch.await(10, TimeUnit.SECONDS))
+        return result
     }
 
     private fun waitForPageLoad(timeoutMs: Long = 15_000) {

@@ -3,9 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <title>SAG Web Shell Test Bundle</title>
+<!-- ABSOLUTE paths with hashed filenames, exactly as `vite build` emits them. This is
+     the point of the fixture: a relative script path resolves under any mount and so
+     proves nothing. These 404 unless the asset handler is mounted at the bundle root. -->
+<link rel="stylesheet" href="/assets/style-B7e2d9f0.css" />
 </head>
 <body>
-<p>web-shell test bundle</p>
-<script src="app.js"></script>
+<p id="status">web-shell test bundle</p>
+<script src="/assets/app-D4f8a1c2.js"></script>
 </body>
 </html>

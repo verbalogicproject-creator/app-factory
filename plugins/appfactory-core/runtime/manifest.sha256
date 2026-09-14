@@ -225,14 +225,14 @@ bdecf875b6868cbcbd36a1f85eedf0832f358ff28092c5797ed645f7edce77d9  ./templates/gr
 5388ca267f1803aad2c84c59a083174f80cc39e8bb6ba12a6a2cce9a313fa92c  ./templates/gradle/proguard-test-rules.pro
 1bda93f2cb6f1011d701385e20d1b31c9d2011097a3670579a9617fc82eca827  ./templates/gradle/root.build.gradle.kts
 e74a0dec6ee28d1f7239688be6c6f9910dfb0da1e4d5678c0c89ff479d9694c7  ./templates/gradle/settings.gradle.kts
-4acf8745c12b1607ca5017192b4cf93749b79df795f6080e5a507ac11d87d061  ./templates/kinds/web-shell/app/src/androidTest/java/WebShellTest.kt
+846a98f54e7e09ad9cc04441e870795c49d18e26a16c1ecbd9dc4740b5622840  ./templates/kinds/web-shell/app/src/androidTest/java/WebShellTest.kt
 06dc70fe36a40488808ac05005b2ba77385be1bc6fb25350786c79a28d13e576  ./templates/kinds/web-shell/app/src/main/AndroidManifest.xml
 86b68cb29dc9528e4e2361361747b9d631759c26841f230dfa3f4d44eb5740b1  ./templates/kinds/web-shell/app/src/main/java/MainActivity.kt
 60a5927ddc441a6e004691777e96964a776b221781c174460fbaa25961ce18f3  ./templates/kinds/web-shell/app/src/main/java/bridge/CommandServer.kt
 fc4be69dd2d5de7b69ba4e8f4634fcc9522e7250e774aa622be504c90569baa7  ./templates/kinds/web-shell/app/src/main/java/bridge/NativeBridge.kt
 1b40c0e2b93c50b65a9e387a16f2cb03cff805b4adf0b41ff30b8b4f1223d8a6  ./templates/kinds/web-shell/app/src/main/java/bridge/PendingReplies.kt
 6f5497f750ca3868eb3e9a68664b73b28f2c313f62d08c190f276db304d54e03  ./templates/kinds/web-shell/app/src/main/java/service/ShellForegroundService.kt
-1267f8b25641ce1eb4945149c81aee2bf0af42e53860369c94ad0cbee2991a21  ./templates/kinds/web-shell/app/src/main/java/web/WebShellScreen.kt
+7ded23d905b3ed720578392f8e5c2d160ecdbbeb7b48e2843d68cd67f21cda3e  ./templates/kinds/web-shell/app/src/main/java/web/WebShellScreen.kt
 401fe10a43cc004ebcbea8baf192f4f774ce3588bf53a1dbf46250071ef95616  ./templates/kinds/web-shell/app/src/main/res/xml/network_security_config.xml
 e2d41441d558155e0245a4e78620898bae4ee9fd06e00f03150f9316efac1b32  ./templates/kinds/web-shell/app/src/test/java/bridge/PendingRepliesTest.kt
 004df25ed2d55a6390bb5083d713357cd846e5457157ac9186ff230da8ea825d  ./versions/2026-08-api36.toml

@@ -281,9 +281,22 @@ def test_web_shell_dies_on_a_web_dir_with_no_index_html(tmp_path, monkeypatch):
 
 
 def test_web_shell_copies_the_bundle_into_assets(web_shell_scaffolded):
+    """The fixture bundle is shaped like a bundler's output -- hashed files under an
+    assets/ subdirectory, referenced by absolute path -- so this also covers the copy
+    preserving nesting, which a flat bundle would not have caught."""
     assets = web_shell_scaffolded / "app/src/main/assets/web"
     assert (assets / "index.html").is_file()
-    assert (assets / "app.js").is_file()
+    assert (assets / "assets" / "app-D4f8a1c2.js").is_file()
+    assert (assets / "assets" / "style-B7e2d9f0.css").is_file()
+
+
+def test_web_shell_bundle_keeps_its_absolute_asset_paths(web_shell_scaffolded):
+    """Absolute /assets/... is what a default `vite build` emits and what the root-mounted
+    WebViewAssetLoader handler exists to serve. If the fixture ever drifts back to
+    relative paths, the instrumented test silently stops covering the white-screen bug."""
+    index = (web_shell_scaffolded / "app/src/main/assets/web/index.html").read_text(encoding="utf-8")
+    assert 'src="/assets/app-D4f8a1c2.js"' in index
+    assert 'href="/assets/style-B7e2d9f0.css"' in index
 
 
 def test_web_shell_manifest_has_deeplink_scheme_and_network_wiring(web_shell_scaffolded):

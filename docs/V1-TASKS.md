@@ -3,8 +3,8 @@
 The live tracking list. Every status below was checked against the tree on the date
 given, not read off a plan. When you change something, change the line here too.
 
-**Verified against the tree: 2026-09-13.** Branch `v1.0.0` at `d898834`.
-243 tests passing, `scripts/repo-check.sh` clean.
+**Verified against the tree: 2026-09-14.** Branch `v1.0.0`.
+252 tests passing, `scripts/repo-check.sh` clean.
 
 Status key — `DONE` landed and verified · `OPEN` not started · `PARTIAL` started,
 named gap remains · `BLOCKED` waiting on something outside the repo.
@@ -28,6 +28,7 @@ named gap remains · `BLOCKED` waiting on something outside the repo.
 | M1 | Plugin installed and enabled; guards observed blocking live | `~/.claude/settings.json` → `appfactory-core@appfactory: true` |
 | M2 | `/android-dev` is a mode: state file + `UserPromptSubmit` anchor + `SessionStart(compact)` doctrine | `d898834`, 37 tests |
 | M2 | Status line wired into `~/.claude/settings.json`; fragment gained a composition path and 28 tests | this pass |
+| G1 | Asset handler root-mounted; the white-screen trap closed | `WebShellScreen.kt` `BundleRootPathHandler`, 13 tests. Proven against SAG-synth's real `dist/`: ladder green through debug, and every reference in the built `index.html` resolves to a path that exists in the APK. **The on-device rung has not run — no device attached.** |
 
 ---
 
@@ -46,8 +47,8 @@ Ordered by how badly each breaks the stated use case.
 
 | # | What | Size | Status verified 2026-09-13 |
 |---|---|---|---|
-| G1 | Root-mount the asset handler | S | **OPEN.** `WebShellScreen.kt:46` still mounts `/assets/`. A default Vite build emits absolute `/assets/…` and renders a white screen while passing all 21 checks. Fix is one line: `addPathHandler("/", …)`. Re-prove with a **real** Vite bundle — today's instrumented test uses a hand-written page that would pass either way. |
-| G1b | Preflight check for absolute asset paths | S | Belt and braces behind G1. ~25 lines + fixtures. No maintained linter exists. |
+| G1c | Run the instrumented rung on the device | S | **PENDING A DEVICE.** The APK and its androidTest APK are built and waiting. `WebShellTest` now asserts the bundle's absolute-path JS ran and its CSS applied — assertions that fail under the old mount. Until this runs, G1 is proven statically and by APK inspection, not by a page actually rendering. |
+| G1b | Preflight check for absolute asset paths | S | **OPEN.** The factory now has 13 regression tests over the mount, but a *generated* project has no check that its own bundle's absolute paths resolve. That is still worth ~25 lines + fixtures. No maintained linter exists. |
 | G2 | `runtime/bin/webdetect.py` | M | **OPEN.** No such file. Vendor `@vercel/frameworks` (Apache-2.0) as JSON for `buildCommand` + `outputDirectory`. Netlify's `framework-info` is deprecated; `@netlify/build-info` is the fallback. |
 | G3 | `adopt` for an existing repo | M | **OPEN.** `scaffold.py` has no `adopt`; `--force` overwrites with no merge. Nothing maintained does template-overlay onto a foreign repo (`copier adopt` is an open issue), so this is ours — thin, and it refuses rather than guesses. |
 | G4 | Preflight vacuity | S | **OPEN.** Checks 020/150/170/210 all `pass` when `app/build.gradle.kts` is absent. An adopted multi-module repo goes green while being entirely unexamined. This is the corpus's founding failure class pointed at itself. |
@@ -87,14 +88,15 @@ log you stop trusting.
 
 ```
 M2a reload+prove ─► M2b other project
-G1 root-mount ─► G1b check ─► G2 webdetect ─────► the "/android-dev <web app>" case works
+G1 root-mount ✔ ─► G1c on device ─► G2 webdetect ─► the "/android-dev <web app>" case works
 G4 vacuity ─► G3 adopt ─► G5 install ─► G6..G10
 V1 docs ─► V2 push+CI ──────────────────────────► V3 Play  (blocked on Eyal)
 M4 codex doc, L1 log reconcile — any time
 ```
 
-Critical path is **G1 → G1b → G2**, because those three are what stand between the mode and
-the thing Eyal actually asked for: point it at a web app, get an APK that renders.
+Critical path is now **G1c → G2**. G1 is done; what remains between the mode and the thing
+Eyal actually asked for is confirming it renders on the phone, and detecting/building the
+web project automatically instead of being handed a `dist/`.
 
 ## The single acceptance test
 
@@ -104,4 +106,8 @@ In a scratch Vite app with **default config and absolute asset paths**:
 detected → bundle built and located → scaffold → ladder green → **APK installed on the
 phone, launching, and rendering the real page**, not a white screen. A receipt per rung.
 
-It fails today, at G1.
+As of 2026-09-14 the back half of that chain is proven for SAG-synth: given its built
+`dist/`, the ladder goes green through debug and every asset the page references resolves
+inside the APK. What is still unproven is the page rendering on the device (G1c, no device
+attached), and the front half — detecting the project and running its build without being
+handed a bundle (G2).
