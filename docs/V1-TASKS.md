@@ -59,6 +59,21 @@ Ordered by how badly each breaks the stated use case.
 | G9 | Local signing | M | **OPEN.** Gradle's `signingConfig` needs a file. Decrypt from the vault to a short-lived path, sign post-build with bare `apksigner`, shred. |
 | G10 | Lattice expiry | S | **OPEN.** Check 140 warns when its own table is stale; the version lattice is dated 2026-08-15 and nothing warns. |
 
+## Open — A: audio (SAG-synth), decided 2026-09-14
+
+Full reasoning and claim table: `/root/projects/sag-synth-apk/AUDIO-PLAN.md`.
+Short version — the crackle campaign already happened, its fixes are in the bundle on the
+phone, and the telemetry built to measure it has **never produced a reading on a device**
+(4,813 observations, zero carrying `underrun_ratio`). So: measure, then decide.
+
+| # | What | When |
+|---|---|---|
+| A0 | Tap `▶ start`, confirm `● live` — no sound is probably the gesture unlock | Now, no wifi needed |
+| A1 | **Audio baseline on the phone** via `/__sag/observe` | **Rides with G1c** — same device, same sitting |
+| A2 | `wet: 0` effect-bypass cost | Only if A1 shows effects-dependent underruns |
+| A3 | Faust/Elementary spike | Only if A1 shows exhausted headroom; needs its own ADR |
+| A4 | Register `window.__sagNative` in the shipped bundle | After A1. Without it `/__sag/command` cannot reach the synth — an agent can observe it but not play it |
+
 ## Open — V: finishing v1.0.0
 
 | # | What | Size | Status |
