@@ -75,8 +75,8 @@ phone, and the telemetry built to measure it has **never produced a reading on a
 | A2 | `wet: 0` effect-bypass cost | Only if A1 shows effects-dependent underruns |
 | A3 | Faust/Elementary spike | Only if A1 shows exhausted headroom; needs its own ADR |
 | ~~A4~~ | ~~Register `window.__sagNative`~~ — **WITHDRAWN, THE CLAIM WAS WRONG.** `native-bridge.ts:75` installs it and `engine.ts:135` wires the command bridge in the production branch. I reported a false negative from a `head -5`-truncated grep that matched only test files. | — |
-| A4b | **The instrument surface emits no telemetry** | Real gap, narrower. `observeAudio()` is called only in `DebugApp.tsx:194`, so `/__sag/observe` is empty on the synth surface. A1 needs this, or needs the `#debug` surface reachable from the shell |
-| A4c | Nothing registers an `onNativeIntent` listener | `native-bridge.ts:56` exports it; no caller. The shell's deep link reaches the page and goes nowhere |
+| ~~A4b~~ | **FIXED 2026-09-15** (SAG-synth `aa9255b`). `observeAudio()` was called only in `DebugApp`; extracted to a shared `useAudioObservation` hook and used by the instrument too. `/__sag/observe` should now fill on the surface people actually play. **Unverified on device.** | — |
+| ~~A4c~~ | **FIXED 2026-09-15** (same commit). `main.tsx` registers an `onNativeIntent` listener; `surfaceFromIntent()` is pure and covered by 17 tests. `sagsynth://debug` opens the debug wall, anything unreadable opens the instrument. **Unverified on device.** | — |
 
 ## Open — V: finishing v1.0.0
 
