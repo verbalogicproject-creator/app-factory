@@ -48,6 +48,7 @@ import subprocess
 import sys
 
 import cmdparse
+import hook_stdin
 
 
 def repo_root(start: str) -> str | None:
@@ -96,7 +97,7 @@ def target_dir(command: str, cwd: str) -> str:
 
 def main() -> int:
     try:
-        payload = json.load(sys.stdin)
+        payload = json.loads(hook_stdin.read_stdin_bounded())
     except Exception:
         return 0
 

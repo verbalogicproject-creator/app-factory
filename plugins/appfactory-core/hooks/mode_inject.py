@@ -37,6 +37,7 @@ silently -- a bare string works right up until the text happens to begin with `{
 import json
 import os
 import sys
+import hook_stdin
 
 # Empirical, not documented: additionalContext degrades into a path + preview past about
 # 10,000 characters. Stay under it with room to spare.
@@ -89,7 +90,7 @@ def doctrine(plugin_root: str) -> str:
 
 def main() -> int:
     try:
-        payload = json.load(sys.stdin)
+        payload = json.loads(hook_stdin.read_stdin_bounded())
     except Exception:
         return 0
 

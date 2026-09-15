@@ -26,7 +26,19 @@ def load_module(name: str, path: Path):
 
     The runtime/bin/*.py scripts are invoked as scripts, not imported as a
     package, so there is nothing on sys.path to `import` them normally.
+
+    The script's own directory goes on sys.path first, because that is what the
+    real invocation does: `python3 <script>` puts the script's directory at
+    sys.path[0], which is how `import cmdparse` and `import hook_stdin` resolve
+    in production. Without it, load_module only works for scripts that happen to
+    have no sibling imports -- so adding one to an existing script broke
+    collection of a test that had never touched it.
     """
+    # `path` is annotated Path but callers pass str too (test_contract.py does),
+    # and the annotation is not enforced -- normalise rather than trust it.
+    directory = str(Path(path).resolve().parent)
+    if directory not in sys.path:
+        sys.path.insert(0, directory)
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module

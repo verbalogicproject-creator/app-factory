@@ -26,6 +26,7 @@ import re
 import sys
 
 import cmdparse
+import hook_stdin
 
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 WORDS = ["gh", "run", "list"]
@@ -33,7 +34,7 @@ WORDS = ["gh", "run", "list"]
 
 def main() -> int:
     try:
-        payload = json.load(sys.stdin)
+        payload = json.loads(hook_stdin.read_stdin_bounded())
     except Exception:
         return 0  # Never block on a payload we cannot parse.
 

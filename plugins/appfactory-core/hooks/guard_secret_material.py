@@ -48,6 +48,7 @@ import re
 import sys
 
 import cmdparse
+import hook_stdin
 
 # Filename patterns that are signing material by definition.
 BLOCKED_NAMES = [
@@ -72,7 +73,7 @@ SECRET_CONTENT = [
 
 def main() -> int:
     try:
-        payload = json.load(sys.stdin)
+        payload = json.loads(hook_stdin.read_stdin_bounded())
     except Exception:
         return 0
 
