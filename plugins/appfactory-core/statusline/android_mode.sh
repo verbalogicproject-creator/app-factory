@@ -36,8 +36,11 @@ done
 
 # Only parse stdin when the caller did not already hand us the directory.
 if [ -z "$dir" ]; then
-    payload="$(cat 2>/dev/null || true)"
-    dir="$(printf '%s' "$payload" | python3 -c '
+    # Bounded: `cat` blocks forever when stdin never reaches EOF (wedged parent),
+    # leaking a subshell + a cat per render. `read -t` keeps what it already read.
+    payload=""
+    IFS= read -r -d '' -t 2 payload || true
+    dir="$(printf '%s' "$payload" | timeout 3 python3 -c '
 import json, sys
 try:
     d = json.load(sys.stdin)
