@@ -28,13 +28,15 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
-STAGES = ["preflight", "compile", "unit", "lint", "debug", "verify-apk", "instrumented", "release"]
+STAGES = ["preflight", "compile", "unit", "lint", "debug", "verify-apk", "instrumented", "device", "release"]
 
 # A stage's prerequisites, by name. `release` needs the release APK verified, which is
 # its own step; `instrumented` needs the debug + androidTest APKs `debug` builds.
 PREREQS = {
     "verify-apk": ["debug"],
     "instrumented": ["debug"],
+    # `device` probes the app the USER installed from that debug APK -- no adb (device-probe.sh).
+    "device": ["debug"],
     "release": ["verify-apk"],
 }
 

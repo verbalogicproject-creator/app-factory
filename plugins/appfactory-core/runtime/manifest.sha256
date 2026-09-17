@@ -1,6 +1,7 @@
 479bee164c2c2c7e2de3a5749c5be95e583cef34c75f8c999deaeb508620e6a0  ./bin/apk_cert.py
 9bc2807baef16fd7a1fc1a656664d70556cb4f85aa3918a9e3cb4c622e9b642c  ./bin/contract.py
-27c30062d9c26f619b8d15e1ce0899fd95717d6c38754829015055673b64733f  ./bin/ladder.py
+02e209734e27ce37140e07ba33cbd5c5265d8df0c0cd72f992969cbfddffbb23  ./bin/device_verdict.py
+e28cbc44225645ce4096f37d5ea7089ff76564d1791dff20498cd71e5ec80fba  ./bin/ladder.py
 5583dfc109975f0bdbc920c9519ad4e8e97a17594928730da67d1e09a08024ce  ./bin/pass_manager.py
 cbc80aecac9355fa6b2780999e925446f0902afe6a6730c127d381d872cfb594  ./bin/scaffold.py
 f931e493d285a6fe4d54aa9074616e02dc425057dcdf10405c9da49664760bc0  ./bin/verify_mapping.py
@@ -8,8 +9,9 @@ a904698546093b26fb1c3cf1aa0f66024b24f5c9592f792f93d9e2377b9b3719  ./bin/webdetec
 e8713c6ab2d529e83277c279844e4aa7ff8f39cab166b63622478cf1f8b48b79  ./data/web-frameworks.json
 bb63f1de3405e74269b021dae5f5e96540b2eaa3a1e7f41add011dadc22f242d  ./scripts/ci-arm-toolchain.sh
 600ff19982b72058a3677fe5d750112ac9e29155539d934c51f4be0cec20da7e  ./scripts/device-instrument.sh
+569a718d3309a70b40c4556b3c1d94ae99ae8dd4516f7f718c035fdf71ce1f1c  ./scripts/device-probe.sh
 3f27861a2b28f284849a3069fc39bd7d3b87d7a44360f066e771e1c04e4ccfb1  ./scripts/emulator-verify.sh
-0d3dc48996b84135888c182e070f00fdc999237ec38fd97b605385ff252d869c  ./scripts/local-build.sh
+8c4d1ce71d1bad995947a639eca96bbf1d9b0b838cee5b8b64e0a5f1238dfb0a  ./scripts/local-build.sh
 60e7425a53135408b1a1238bc1f7b56d5c7bb4b34f218f8ce4d0efb0bfafb5f3  ./scripts/local-toolchain.sh
 b046e797fe5f957c1123e58e4adf1418c8d515af50e394e0c9a1d0ebae1c3223  ./scripts/preflight.sh
 88782775381d29047d83bef787c001aa3f962173e7d454979181601f9d354b96  ./scripts/preflight/checks/010-catalog-aliases.sh

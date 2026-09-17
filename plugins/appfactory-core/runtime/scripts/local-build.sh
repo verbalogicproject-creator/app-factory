@@ -5,7 +5,7 @@
 #   bash scripts/local-build.sh [--host proot|termux|auto] [--until STAGE] [--bench]
 #                               [--stop-daemons] [--keep-going] [STAGE...]
 #
-#   stages, in ladder order:  preflight compile unit lint debug verify-apk instrumented release
+#   stages, in ladder order:  preflight compile unit lint debug verify-apk instrumented device release
 #
 # Each stage is timed and every run writes a receipt to .appfactory/receipts/ -- a JSON
 # record of WHICH tree (sha + dirty flag), WHICH host, and what each stage returned. A
@@ -140,6 +140,8 @@ run_verify_apk() {
     AAPT2="$AAPT2" bash scripts/verify-apk.sh "$apk" && ARTIFACTS+=("$apk")
 }
 run_instrumented() { bash scripts/device-instrument.sh; }
+# No adb: the user installs the debug APK, Termux launches it, loopback probes it.
+run_device() { bash scripts/device-probe.sh --wait-install "${APPFACTORY_INSTALL_WAIT:-180}"; }
 run_release() {
     # aapt2 < 2.20 packages a release APK with no manifest and no resources.arsc, silently.
     local v; v="$(af_aapt2_version "${AAPT2:-/nonexistent}" 2>/dev/null || true)"
