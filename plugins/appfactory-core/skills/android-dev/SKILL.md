@@ -61,7 +61,7 @@ questions are informed rather than generic:
 | What you find | What it means |
 |---|---|
 | `app/build.gradle.kts` or `*.kt` | an existing Android project — adopt, do not scaffold over it |
-| `package.json` with a build script, `vite.config.*`, `next.config.*`, `astro.config.*` | a web project — `--kind web-shell`, and it needs a **built** bundle |
+| `package.json` with a build script, `vite.config.*`, `next.config.*`, `astro.config.*` | a web project — `--kind web-shell`, and it needs a **built** bundle: run `python3 "${CLAUDE_PLUGIN_ROOT}/runtime/bin/webdetect.py" detect <dir>` to name the framework and build command, then `webdetect.py build <dir>` (ask first — it runs the project's install and build) and pass its `webDir` to `scaffold.py --web-dir` |
 | neither | a new app — `--kind compose` |
 
 Then run `/appfactory-core:plan`, which owns the interview and writes the contract. Feed

@@ -54,6 +54,18 @@ python3 "${CLAUDE_PLUGIN_ROOT}/runtime/bin/scaffold.py" <target-dir> \
     --application-id <id> --app-name "<name>" --min-sdk 28 --target-sdk 36
 ```
 
+For `--kind web-shell`, `--web-dir` must be a **built** bundle. Get it from the web
+project rather than guessing at `dist/`:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/runtime/bin/webdetect.py" build <web-project>   # JSON; use "webDir"
+```
+
+It runs the project's own install and build, and only accepts an `index.html` newer than
+that build. On `"ok": false` read `reason` and `looked` — a server-rendered framework
+(Next without a static export, Nuxt SSR, Remix) has no bundle to wrap, and that is the
+answer, not a detection bug.
+
 It refuses an invalid `applicationId` or a `minSdk` below 26 rather than discovering
 either later. Then `git init`, and verify locally before pushing anything:
 

@@ -30,3 +30,16 @@ build with it, and no attribution is required in a generated app.
 Third-party components retain their own licences. This repository vendors no
 third-party source; it downloads toolchains (Android SDK, Gradle, JDK) and Android
 dependencies at build time, each under its own terms.
+
+VENDORED THIRD-PARTY DATA
+
+plugins/appfactory-core/runtime/data/web-frameworks.json
+  Derived from @vercel/frameworks (https://github.com/vercel/vercel), Copyright Vercel,
+  Inc., licensed under the Apache License, Version 2.0. Converted from JavaScript to JSON
+  by scripts/vendor-web-frameworks.mjs: experimental entries dropped, presentation fields
+  (logos, taglines, demos) removed, `getOutputDirName` evaluated against an empty
+  directory. The exact upstream version is recorded in the file's "source" field.
+
+plugins/appfactory-core/runtime/bin/webdetect.py
+  Its matches() and remove_superseded() are a Python port of detect-framework.js from
+  @vercel/fs-detectors 7.3.0, same copyright and licence as above.

@@ -427,3 +427,20 @@ def test_explicit_flag_overrides_contract(tmp_path, monkeypatch):
     )
     assert rc == 0
     assert not (target / "app/src/main/assets/web").exists()
+
+
+def test_vendored_webdetect_finds_its_table(tmp_path, monkeypatch):
+    # webdetect.py resolves its framework table as ../data/ from wherever it lives.
+    # Vendoring bin/ without data/ shipped a tool that crashed on first use.
+    target = tmp_path / "demo"
+    rc = _run_main([str(target), "--application-id", "com.example.webdetect", "--app-name", "X"], monkeypatch)
+    assert rc == 0
+    web = tmp_path / "web"
+    web.mkdir()
+    (web / "package.json").write_text('{"devDependencies": {"vite": "5"}}')
+    proc = subprocess.run(
+        [sys.executable, str(target / ".appfactory/bin/webdetect.py"), "detect", str(web)],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert '"slug": "vite"' in proc.stdout

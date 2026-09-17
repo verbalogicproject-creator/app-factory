@@ -408,7 +408,8 @@ def main() -> int:
     # The fixture trees under scripts/preflight/fixtures/ are copied verbatim on
     # purpose: they are deliberately-broken sample projects, and rendering them
     # would corrupt the very bugs they encode.
-    for sub_dir, dst in (("scripts", "scripts"), ("bin", ".appfactory/bin")):
+    # data/ travels with bin/: webdetect.py resolves its framework table as ../data/.
+    for sub_dir, dst in (("scripts", "scripts"), ("bin", ".appfactory/bin"), ("data", ".appfactory/data")):
         src_root = os.path.join(RUNTIME, sub_dir)
         if not os.path.isdir(src_root):
             continue
