@@ -100,7 +100,7 @@ It runs in this order, and the order is the point:
    sensitive rather than immutable**: it *can* change, which is what migrations are
    for. What cannot be undone is that data already sits on devices, so a wrong
    migration destroys it. A different risk, and worth a different word.
-2. **Generate and verify locally** — 22 static checks, ~2 seconds.
+2. **Generate and verify locally** — 23 static checks, ~2 seconds.
 3. **Key into an encrypted vault, with a blocking backup step.** Losing a release key
    means you cannot ever update the installed cohort. There is no recovery.
 4. **Push secrets and prove they arrived with a canary.** GitHub never returns a secret
@@ -114,7 +114,7 @@ Each rung catches something no cheaper rung can. Cost is why the order matters.
 | Rung | Cost | Catches uniquely |
 |---|---|---|
 | authoring hooks | ~0.2s | unpinned run lookups, secret material, pushing without preflight |
-| static preflight | ~2s | 22 check classes |
+| static preflight | ~2s | 23 check classes |
 | **local compile** | 13–21s | types, Compose compiler, KSP/Hilt graph |
 | **local unit tests** | ~45s | logic, serialization, Room migration |
 | **local lint** | ~75s | patterns that compile and fail later |
@@ -132,7 +132,7 @@ commit messages and a README table before anyone tested it — and it did not, b
 
 ## The check corpus
 
-22 checks, each shipping a fixture that reproduces its bug.
+23 checks, each shipping a fixture that reproduces its bug.
 
 **`preflight.sh` refuses to run a check that has no fixture directory.** Not a
 convention — the runner will not execute it. New checks are written fixture-first, and

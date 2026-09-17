@@ -40,3 +40,19 @@
 #
 # LOCAL DELTA: none. The only @Serializable type here (ItemDto) has a default
 # companion and is fully covered by the library's own rules.
+
+# --- Ktor (web-shell kind) --------------------------------------------------------
+#
+# Found by the first CI run of a real generated app, 2026-09-17 (sag-synth-apk):
+#   R8: Missing class java.lang.management.ManagementFactory
+#     (referenced from io.ktor.util.debug.IntellijIdeaDebugDetector)
+# java.lang.management is JVM-only and absent from android.jar. Ktor only touches it to
+# ask whether an IntelliJ debugger is attached, which never happens on a phone. These
+# two lines are exactly what AGP's generated missing_rules.txt proposed -- no wildcard.
+#
+# A fresh web-shell app does NOT hit this today: its command server is debug-only
+# (BuildConfig.DEBUG is a constant false in release), so R8 strips Ktor as dead code.
+# The rule is for an app that deliberately keeps a server in release, and for apps
+# generated before that gate existed. Harmless for kinds without Ktor.
+-dontwarn java.lang.management.ManagementFactory
+-dontwarn java.lang.management.RuntimeMXBean

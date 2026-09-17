@@ -444,3 +444,48 @@ def test_vendored_webdetect_finds_its_table(tmp_path, monkeypatch):
     )
     assert proc.returncode == 0, proc.stderr
     assert '"slug": "vite"' in proc.stdout
+
+
+# ---------------------------------------------------------------------------
+# --refresh-runtime: a generated app gets the factory's current runtime
+# ---------------------------------------------------------------------------
+def test_refresh_runtime_restores_vendored_files_and_leaves_app_sources_alone(tmp_path, monkeypatch):
+    # The failure this exists for: sag-synth-apk's first CI run died on a setup-android bug
+    # the factory had already fixed -- in the template, while the app ran its old copy.
+    target = tmp_path / "demo"
+    args = ["--application-id", "com.example.refresh", "--app-name", "Refresh Me"]
+    assert _run_main([str(target), *args], monkeypatch) == 0
+
+    ci = target / ".github/workflows/ci.yml"
+    fresh_ci = ci.read_text()
+    ci.write_text("stale workflow from an older factory\n")
+    (target / "scripts/preflight.sh").write_text("#!/bin/sh\necho stale\n")
+    (target / ".appfactory/bin/ladder.py").unlink()
+    app_src = next((target / "app/src/main").rglob("MainActivity.kt"))
+    app_src.write_text(app_src.read_text() + "\n// the app's own edit\n")
+    gradle = target / "app/build.gradle.kts"
+    gradle.write_text(gradle.read_text() + "\n// the app's own gradle edit\n")
+
+    assert _run_main([str(target), *args, "--refresh-runtime"], monkeypatch) == 0
+
+    assert ci.read_text() == fresh_ci
+    assert "com.example.refresh" in ci.read_text()
+    assert "stale" not in (target / "scripts/preflight.sh").read_text()
+    assert (target / ".appfactory/bin/ladder.py").is_file()
+    assert "the app's own edit" in app_src.read_text()
+    assert "the app's own gradle edit" in gradle.read_text()
+
+
+def test_refresh_runtime_refuses_a_directory_that_is_not_a_generated_project(tmp_path, monkeypatch):
+    target = tmp_path / "random"
+    target.mkdir()
+    (target / "notes.txt").write_text("x")
+    with pytest.raises(SystemExit) as exc:
+        _run_main([str(target), "--application-id", "com.example.x", "--app-name", "X", "--refresh-runtime"], monkeypatch)
+    assert "not a generated project" in str(exc.value)
+
+
+def test_refresh_runtime_on_web_shell_does_not_need_the_web_dir(tmp_path, monkeypatch, web_shell_scaffolded):
+    rc = _run_main([str(web_shell_scaffolded), "--application-id", "com.example.webshell", "--app-name", "Web Shell",
+                    "--kind", "web-shell", "--refresh-runtime"], monkeypatch)
+    assert rc == 0

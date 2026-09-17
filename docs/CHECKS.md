@@ -31,6 +31,7 @@ A check with no incident behind it is a guess, and is labelled as one.
 | 200 | an `androidTest` source reading a build-type-only source set | **a fixture in `src/debug` pinned the whole instrumented suite to one build type — and retired a verification rung on false evidence** |
 | 210 | a Compose `Activity` with no `enableEdgeToEdge()` at targetSdk 35+ | ANTICIPATED from the API 36 platform change, not yet an observed incident |
 | 220 | a local server (Ktor, `ServerSocket`, `LocalServerSocket`, NanoHTTPD, Netty) in a shipped source set with no `BuildConfig.DEBUG` gate | **the web-shell's unauthenticated command server started in release builds, reachable by every app on the phone over 127.0.0.1** — found by reading the code, not by an incident |
+| 230 | a web bundle whose `index.html` or CSS references an asset that does not exist under `assets/web/` (Vite `base`, stale copy, relative `url()` resolved against the wrong file) | **the white screen: a wrong asset mount survived twenty-one checks, a unit suite and an instrumented test at once** |
 
 Three of those deserve expansion, because they are the ones that teach something.
 

@@ -39,7 +39,7 @@ Everything downstream is cheap to change. These are not.
 validates `applicationId` against the package-name regex and `minSdk >= 26` *before*
 writing anything.
 
-Then `scripts/preflight.sh` runs 22 checks in roughly two seconds. This matters because
+Then `scripts/preflight.sh` runs 23 checks in roughly two seconds. This matters because
 a CI round trip is 2–5 minutes; the entire point of the corpus is that a category of
 mistake never costs that.
 
@@ -91,7 +91,7 @@ were *not* run.
   receipts/                    planned — one JSON receipt per verification-ladder stage
 scripts/
   preflight.sh                 the runner
-  preflight/checks/            22 checks
+  preflight/checks/            23 checks
   preflight/fixtures/          a reproduction of every bug the checks catch
   local-toolchain.sh           doctor: can this machine build locally, and if not why
 .github/workflows/

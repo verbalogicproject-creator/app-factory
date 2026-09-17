@@ -225,6 +225,78 @@ def copy_app_tree(app_tpl: str, target: str, pkg_path: str, subs: dict[str, str]
     return count
 
 
+def vendor_runtime(target: str, subs: dict[str, str]) -> None:
+    """Copy the factory's own runtime (scripts, bin, data, workflows) into a project.
+
+    Shared by a fresh scaffold and --refresh-runtime, so the two can never vendor
+    different things.
+    """
+    #
+    # scripts/ must be RENDERED, not copied. emulator-verify.sh contains
+    # {{APPLICATION_ID}}, and copying it verbatim produced
+    #     Error: Activity class {{{APPLICATION_ID}}/...MainActivity} does not exist
+    # on the emulator — the launch smoke caught it honestly, but only after a
+    # 10-minute run, and only because that rung exists at all.
+    #
+    # The fixture trees under scripts/preflight/fixtures/ are copied verbatim on
+    # purpose: they are deliberately-broken sample projects, and rendering them
+    # would corrupt the very bugs they encode.
+    # data/ travels with bin/: webdetect.py resolves its framework table as ../data/.
+    for sub_dir, dst in (("scripts", "scripts"), ("bin", ".appfactory/bin"), ("data", ".appfactory/data")):
+        src_root = os.path.join(RUNTIME, sub_dir)
+        if not os.path.isdir(src_root):
+            continue
+        for root, dirs, files in os.walk(src_root):
+            # __pycache__ is build output of THIS repo's own tooling, never source --
+            # vendoring it ships stale, host-specific .pyc files into every generated
+            # app for no reason a scaffolded project could ever need.
+            dirs[:] = [d for d in dirs if d != "__pycache__"]
+            for f in files:
+                if f.endswith(".pyc"):
+                    continue
+                s = os.path.join(root, f)
+                rel = os.path.relpath(s, src_root)
+                d = os.path.join(target, dst, rel)
+                if "preflight/fixtures/" in rel.replace(os.sep, "/"):
+                    os.makedirs(os.path.dirname(d), exist_ok=True)
+                    shutil.copy2(s, d)
+                else:
+                    copy_rendered(s, d, subs)
+                if f.endswith((".sh", ".py")):
+                    os.chmod(d, 0o755)
+    for wf in os.listdir(os.path.join(RUNTIME, "workflows")):
+        copy_rendered(os.path.join(RUNTIME, "workflows", wf),
+                      os.path.join(target, ".github/workflows", wf), subs)
+
+
+def refresh_runtime(target: str, app_id: str, app_name: str, kind: str, deeplink_scheme: str,
+                    with_native: bool, min_sdk: int, target_sdk: int) -> int:
+    """Bring a generated project's vendored runtime up to this factory's version.
+
+    WHY. A generated app got a COPY of scripts and workflows on the day it was scaffolded,
+    and nothing ever updated it. The first CI run of a real generated app (sag-synth-apk,
+    2026-09-17) failed on a setup-android bug the factory had already fixed a day earlier:
+    the fix lived in the template, the app ran the old copy.
+
+    WHAT IT DOES NOT DO. App sources, gradle files, proguard rules and the web bundle are
+    the app's own and may have diverged on purpose, so they are never overwritten here.
+    Template changes to those are reported as a reminder, not applied.
+    """
+    if not os.path.isfile(os.path.join(target, "app", "build.gradle.kts")) or \
+            not os.path.isdir(os.path.join(target, ".appfactory")):
+        die(f"{target} is not a generated project (needs app/build.gradle.kts and .appfactory/)")
+    subs = substitutions(app_id, app_name, kind=kind, deeplink_scheme=deeplink_scheme,
+                         sag_port=DEFAULT_SAG_PORT, with_native=with_native)
+    subs["{{MIN_SDK}}"] = str(min_sdk)
+    subs["{{TARGET_SDK}}"] = str(target_sdk)
+    print(f"refreshing the vendored runtime of {app_name} ({kind}) in {target}")
+    vendor_runtime(target, subs)
+    ok("runtime refreshed: scripts/, .appfactory/bin, .appfactory/data, .github/workflows")
+    note("review with `git diff` before committing; local edits to those files were overwritten")
+    note("NOT refreshed (the app's own): app sources, gradle files, proguard rules, web bundle")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("target")
@@ -240,6 +312,10 @@ def main() -> int:
     ap.add_argument("--contract", default=None, help="a directory containing lattice.toml (see contract.py); "
                      "fills any flag above not given explicitly, and is copied into the scaffolded project")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--refresh-runtime", action="store_true",
+                    help="re-vendor ONLY the factory runtime (scripts/, .appfactory/bin, "
+                         ".appfactory/data, .github/workflows) into an existing generated project; "
+                         "app sources, gradle files and the web bundle are not touched")
     args = ap.parse_args()
 
     # --contract fills anything the command line left unset. Explicit flags always
@@ -288,13 +364,15 @@ def main() -> int:
         die(f"minSdk {min_sdk} < 26: adaptive icons need 26, and the templates "
             "ship no PNG fallbacks.")
 
-    if kind == "web-shell":
+    if kind == "web-shell" and not args.refresh_runtime:
         if not web_dir:
             die("--kind web-shell requires --web-dir DIR (a built web bundle)")
         if not os.path.isfile(os.path.join(web_dir, "index.html")):
             die(f"--web-dir {web_dir} has no index.html -- point it at a BUILT bundle, not source")
 
     target = os.path.abspath(args.target)
+    if args.refresh_runtime:
+        return refresh_runtime(target, app_id, app_name, kind, deeplink_scheme, with_native, min_sdk, target_sdk)
     if os.path.exists(target) and os.listdir(target) and not args.force:
         die(f"{target} exists and is not empty. Use --force to scaffold into it anyway.")
 
@@ -398,42 +476,7 @@ def main() -> int:
         ok(".appfactory/contract/ copied from --contract")
 
     # --- vendored runtime --------------------------------------------------
-    #
-    # scripts/ must be RENDERED, not copied. emulator-verify.sh contains
-    # {{APPLICATION_ID}}, and copying it verbatim produced
-    #     Error: Activity class {{{APPLICATION_ID}}/...MainActivity} does not exist
-    # on the emulator — the launch smoke caught it honestly, but only after a
-    # 10-minute run, and only because that rung exists at all.
-    #
-    # The fixture trees under scripts/preflight/fixtures/ are copied verbatim on
-    # purpose: they are deliberately-broken sample projects, and rendering them
-    # would corrupt the very bugs they encode.
-    # data/ travels with bin/: webdetect.py resolves its framework table as ../data/.
-    for sub_dir, dst in (("scripts", "scripts"), ("bin", ".appfactory/bin"), ("data", ".appfactory/data")):
-        src_root = os.path.join(RUNTIME, sub_dir)
-        if not os.path.isdir(src_root):
-            continue
-        for root, dirs, files in os.walk(src_root):
-            # __pycache__ is build output of THIS repo's own tooling, never source --
-            # vendoring it ships stale, host-specific .pyc files into every generated
-            # app for no reason a scaffolded project could ever need.
-            dirs[:] = [d for d in dirs if d != "__pycache__"]
-            for f in files:
-                if f.endswith(".pyc"):
-                    continue
-                s = os.path.join(root, f)
-                rel = os.path.relpath(s, src_root)
-                d = os.path.join(target, dst, rel)
-                if "preflight/fixtures/" in rel.replace(os.sep, "/"):
-                    os.makedirs(os.path.dirname(d), exist_ok=True)
-                    shutil.copy2(s, d)
-                else:
-                    copy_rendered(s, d, subs)
-                if f.endswith((".sh", ".py")):
-                    os.chmod(d, 0o755)
-    for wf in os.listdir(os.path.join(RUNTIME, "workflows")):
-        copy_rendered(os.path.join(RUNTIME, "workflows", wf),
-                      os.path.join(target, ".github/workflows", wf), subs)
+    vendor_runtime(target, subs)
     ok("runtime vendored (preflight + its fixtures, workflows, bin)")
 
     os.makedirs(os.path.join(target, ".appfactory/release"), exist_ok=True)
