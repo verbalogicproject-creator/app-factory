@@ -100,6 +100,25 @@ else
     fi
 fi
 
+# A build-tools binary by name, from the NEWEST installed build-tools. Override with
+# AAPT2= / APKSIGNER= / ZIPALIGN=.
+#
+# Two defects in the loop this replaced, both found by the first CI run (2026-09-17):
+#   - `build-tools/*/zipalign` globs OLDEST first, and runners ship several; on
+#     ubuntu-latest that picked a zipalign with no -P and failed a correctly aligned APK.
+#   - its "PATH first" entry was `[ -x zipalign ]` -- a file in the CURRENT DIRECTORY,
+#     never PATH -- so it never fired. PATH lookup is deliberately NOT added now: it would
+#     silently change which binary every existing run uses (Termux has aapt2 on PATH).
+newest_build_tool() {
+    local sdk bt
+    for sdk in "${ANDROID_HOME:-}" "${ANDROID_SDK_ROOT:-}"; do
+        [ -n "$sdk" ] && [ -d "$sdk/build-tools" ] || continue
+        bt="$(find "$sdk/build-tools" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort -V | tail -1)"
+        [ -n "$bt" ] && [ -x "$bt/$1" ] && { printf '%s\n' "$bt/$1"; return 0; }
+    done
+    return 1
+}
+
 # ── 2. Does the platform's own parser agree ────────────────────────────────────
 #
 # The zip check above can pass on an archive whose manifest is present but corrupt.
@@ -107,9 +126,7 @@ fi
 # file, no device will.
 AAPT2="${AAPT2:-}"
 if [ -z "$AAPT2" ]; then
-    for c in aapt2 "${ANDROID_HOME:-}/build-tools"/*/aapt2 "${ANDROID_SDK_ROOT:-}/build-tools"/*/aapt2; do
-        [ -x "$c" ] && { AAPT2="$c"; break; }
-    done
+    AAPT2="$(newest_build_tool aapt2 || true)"
 fi
 if [ -z "$AAPT2" ] || ! command -v "$AAPT2" >/dev/null 2>&1 && [ ! -x "$AAPT2" ]; then
     # SKIP LOUDLY. A silent pass is indistinguishable from a clean result, which is
@@ -130,9 +147,7 @@ fi
 if [ "$EXPECT_SIGNED" -eq 1 ]; then
     SIGNER="${APKSIGNER:-}"
     if [ -z "$SIGNER" ]; then
-        for c in apksigner "${ANDROID_HOME:-}/build-tools"/*/apksigner "${ANDROID_SDK_ROOT:-}/build-tools"/*/apksigner; do
-            [ -x "$c" ] && { SIGNER="$c"; break; }
-        done
+        SIGNER="$(newest_build_tool apksigner || true)"
     fi
     if [ -z "$SIGNER" ] || [ ! -x "$SIGNER" ]; then
         skip "apksigner not found -- set APKSIGNER=/path/to/apksigner"
@@ -234,12 +249,16 @@ else
     else
         ZIPALIGN="${ZIPALIGN:-}"
         if [ -z "$ZIPALIGN" ]; then
-            for c in zipalign "${ANDROID_HOME:-}/build-tools"/*/zipalign "${ANDROID_SDK_ROOT:-}/build-tools"/*/zipalign; do
-                [ -x "$c" ] && { ZIPALIGN="$c"; break; }
-            done
+            ZIPALIGN="$(newest_build_tool zipalign || true)"
         fi
         if [ -z "$ZIPALIGN" ] || [ ! -x "$ZIPALIGN" ]; then
             skip "zipalign not found -- set ZIPALIGN=/path/to/zipalign to double-check zip-level 16 KB alignment"
+        # Probe by usage text, captured first: zipalign exits non-zero when printing it,
+        # and under pipefail `zipalign | grep` fails even when grep matches.
+        elif za_usage="$("$ZIPALIGN" 2>&1 || true)"; case "$za_usage" in *"-P <"*|*"-P:"*) false ;; *) true ;; esac; then
+            # -P arrived in build-tools 35. An older zipalign cannot answer the question,
+            # which is not the same as the APK failing it.
+            skip "zipalign at $ZIPALIGN has no -P (build-tools < 35) -- set ZIPALIGN to a newer one for the zip-level 16 KB check"
         elif za_out="$("$ZIPALIGN" -c -P 16 -v 4 "$APK" 2>&1)"; then
             ok "zipalign -P 16 confirms zip-level 16 KB alignment"
         else

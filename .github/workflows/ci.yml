@@ -134,6 +134,11 @@ jobs:
       - name: Set up Android SDK (ARM only -- x86_64 runners ship one)
         if: matrix.os == 'ubuntu-24.04-arm'
         uses: android-actions/setup-android@v4
+        with:
+          # The action's default is 'tools platform-tools'. `tools` was removed from the SDK
+          # repository, so the default fails ("Failed to find package 'tools'") -- first CI
+          # run, 2026-09-17. build-tools and platforms are left to Gradle to download.
+          packages: platform-tools
 
       - name: Scaffold a demo project
         run: |

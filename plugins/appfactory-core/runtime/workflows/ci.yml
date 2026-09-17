@@ -272,6 +272,11 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          # The action's default is 'tools platform-tools'. `tools` was removed from the SDK
+          # repository, so the default fails ("Failed to find package 'tools'") -- first CI
+          # run, 2026-09-17. build-tools and platforms are left to Gradle to download.
+          packages: platform-tools
 
       - name: Vendor an aarch64 aapt2 (debug builds only -- see job comment)
         run: bash scripts/ci-arm-toolchain.sh

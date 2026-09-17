@@ -124,3 +124,59 @@ def test_missing_resources_arsc_fails(tmp_path, aligned_so):
     r = _run(apk)
     assert r.returncode == 1, r.stdout
     assert "resources.arsc" in r.stdout
+
+
+# ---------------------------------------------------------------------------
+# Which zipalign. The first CI run (2026-09-17) failed a correctly aligned APK
+# because `build-tools/*/zipalign` returned the OLDEST build-tools on the runner,
+# whose zipalign has no -P flag.
+# ---------------------------------------------------------------------------
+OLD_ZIPALIGN = """#!/bin/sh
+if [ $# -eq 0 ]; then echo "Usage: zipalign [-f] [-p] [-v] [-z] <align> infile.zip outfile.zip"; echo "  -p: page-align uncompressed .so files"; exit 2; fi
+echo "zipalign: unknown option -- P"; exit 2
+"""
+NEW_ZIPALIGN = """#!/bin/sh
+if [ $# -eq 0 ]; then echo "Usage: zipalign -c [-p] [-P <pagesize_kb>] [-v] <align> infile.zip"; exit 2; fi
+echo "Verification succesful"; exit 0
+"""
+
+
+def _fake_sdk(tmp_path, versions: dict[str, str]):
+    sdk = tmp_path / "sdk"
+    for version, body in versions.items():
+        d = sdk / "build-tools" / version
+        d.mkdir(parents=True)
+        (d / "zipalign").write_text(body)
+        (d / "zipalign").chmod(0o755)
+    return sdk
+
+
+def _run_with_sdk(apk_path, sdk):
+    env = dict(os.environ)
+    for k in ("AAPT2", "ZIPALIGN", "ANDROID_SDK_ROOT"):
+        env.pop(k, None)
+    env["ANDROID_HOME"] = str(sdk)
+    # a real zipalign on the host PATH would win over the fake SDK and test nothing
+    env["PATH"] = os.pathsep.join(
+        d for d in env["PATH"].split(os.pathsep) if not os.path.exists(os.path.join(d, "zipalign"))
+    )
+    return subprocess.run(["bash", str(VERIFY_APK), str(apk_path)],
+                          capture_output=True, text=True, timeout=30, env=env)
+
+
+def test_newest_build_tools_zipalign_is_used(tmp_path, aligned_so):
+    apk = tmp_path / "good.apk"
+    _make_apk(apk, aligned_so)
+    sdk = _fake_sdk(tmp_path, {"30.0.3": OLD_ZIPALIGN, "36.0.0": NEW_ZIPALIGN})
+    r = _run_with_sdk(apk, sdk)
+    assert r.returncode == 0, r.stdout
+    assert "zipalign -P 16 confirms" in r.stdout
+
+
+def test_zipalign_without_P_skips_instead_of_failing(tmp_path, aligned_so):
+    apk = tmp_path / "good.apk"
+    _make_apk(apk, aligned_so)
+    sdk = _fake_sdk(tmp_path, {"30.0.3": OLD_ZIPALIGN})
+    r = _run_with_sdk(apk, sdk)
+    assert r.returncode == 0, r.stdout
+    assert "has no -P" in r.stdout

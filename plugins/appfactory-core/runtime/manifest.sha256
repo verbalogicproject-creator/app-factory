@@ -200,7 +200,7 @@ ab514cf0affcd6f3544da002df3df58cc261348eae9fe063409322a74cbd63ea  ./scripts/pref
 cbef79e66d232b5e978ac8e1bf8c5b1f32b9837d7d7b161051b9f78e4d28b68a  ./scripts/sync-web.sh
 bdb15320b61edda1d37926c602861da1b65c6f0948286ab87f17ace1274b284d  ./scripts/toolchain-env.sh
 b039c133189cfd45da49a60109ffa4c57c16b8a6337fa4ad1a25cf9986bceb87  ./scripts/verify-apk-native-linkage.sh
-714d17bab63ead35a964a12ec30ce87234e506f29e2b4af256818b32966e9093  ./scripts/verify-apk.sh
+1bf5d305ada60653d0fa01ef44d7edfb128a81e6cc248a810e775a8f636e9f81  ./scripts/verify-apk.sh
 bb9e29dedfc4f5f74b75cff137cfc72589b5777ed6f6b4a77600f55824b5806d  ./templates/app/src/androidTest/java/LaunchTest.kt
 fa303a57645596af73515653f1711c2022e52defd157adfcd0c9a5b47539f812  ./templates/app/src/main/AndroidManifest.xml
 db1ddeaa70afac6fa6faa2a02ae1a259dc142b8431c3aca34f7b9cf2bf78e559  ./templates/app/src/main/java/App.kt
@@ -241,7 +241,7 @@ ddb70fb95c68c3ccdabc36547a866a83758cdf9042a061a31fa421e5245f9261  ./templates/ki
 e2d41441d558155e0245a4e78620898bae4ee9fd06e00f03150f9316efac1b32  ./templates/kinds/web-shell/app/src/test/java/bridge/PendingRepliesTest.kt
 004df25ed2d55a6390bb5083d713357cd846e5457157ac9186ff230da8ea825d  ./versions/2026-08-api36.toml
 a05d5346238ab3f17c4e2b1e18f03481846a76a363a5a3d6501a1fe7cf4e9ab4  ./versions/2026-08.toml
-9de5026b285773b94635c341dc964bf1a640ac76691840d1540d8bca90d531ae  ./workflows/ci.yml
+ba513e751ede319bf42b0b06bc47b1b7924e242c28aeb827f9d03bafb66efba6  ./workflows/ci.yml
 d4c538692f22a1ed3c0bdc10b62c48ff91250dab0eafe4b6d7a3aa99c21f7d60  ./workflows/emulator.yml
 a7671f8ce43c96d369db8ffaf5576845db3846fe71f8ca76f151ff4736b400dd  ./workflows/release.yml
 7c7feb48a054cac6ccb395662e2cbdedabe894169733489dd1812ae1f867289c  ./workflows/secret-doctor.yml
