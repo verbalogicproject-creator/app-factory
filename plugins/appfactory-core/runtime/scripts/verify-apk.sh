@@ -132,6 +132,10 @@ if [ -z "$AAPT2" ] || ! command -v "$AAPT2" >/dev/null 2>&1 && [ ! -x "$AAPT2" ]
     # SKIP LOUDLY. A silent pass is indistinguishable from a clean result, which is
     # the failure this whole script exists to prevent.
     skip "aapt2 not found -- set AAPT2=/path/to/aapt2 to enable manifest parsing"
+elif "$AAPT2" version >/dev/null 2>&1; [ $? -eq 126 ]; then
+    # 126: the binary exists but this host cannot execute it -- the SDK's x86_64 aapt2 on
+    # an arm64 runner (third CI run, 2026-09-17). That says nothing about the APK.
+    skip "aapt2 at $AAPT2 cannot execute on this host ($(uname -m)) -- set AAPT2 to a native build"
 else
     if badging="$("$AAPT2" dump badging "$APK" 2>&1)"; then
         ok "aapt2 parses it: $(printf '%s' "$badging" | sed -n '1s/^package: //p')"
@@ -255,6 +259,8 @@ else
             skip "zipalign not found -- set ZIPALIGN=/path/to/zipalign to double-check zip-level 16 KB alignment"
         # Probe by usage text, captured first: zipalign exits non-zero when printing it,
         # and under pipefail `zipalign | grep` fails even when grep matches.
+        elif "$ZIPALIGN" >/dev/null 2>&1; [ $? -eq 126 ]; then
+            skip "zipalign at $ZIPALIGN cannot execute on this host ($(uname -m)) -- set ZIPALIGN to a native build"
         elif za_usage="$("$ZIPALIGN" 2>&1 || true)"; case "$za_usage" in *"-P <"*|*"-P:"*) false ;; *) true ;; esac; then
             # -P arrived in build-tools 35. An older zipalign cannot answer the question,
             # which is not the same as the APK failing it.

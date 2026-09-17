@@ -180,3 +180,30 @@ def test_zipalign_without_P_skips_instead_of_failing(tmp_path, aligned_so):
     r = _run_with_sdk(apk, sdk)
     assert r.returncode == 0, r.stdout
     assert "has no -P" in r.stdout
+
+
+def test_tool_this_host_cannot_execute_skips_instead_of_blaming_the_apk(tmp_path, aligned_so):
+    # Third CI run: the SDK's x86_64 aapt2 on an arm64 runner reported
+    # "aapt2 cannot parse it: ... Exec format error" -- a host problem filed as an APK defect.
+    apk = tmp_path / "good.apk"
+    _make_apk(apk, aligned_so)
+    foreign = tmp_path / "foreign"
+    foreign.write_bytes(b"\x7fELF\x02\x01\x01" + b"\x00" * 9 + b"\x02\x00\x3e\x00" + b"\x00" * 200)
+    foreign.chmod(0o755)
+    sdk = _fake_sdk(tmp_path, {})
+    zipalign_dir = sdk / "build-tools" / "36.0.0"
+    zipalign_dir.mkdir(parents=True)
+    (zipalign_dir / "zipalign").write_bytes(foreign.read_bytes())
+    (zipalign_dir / "zipalign").chmod(0o755)
+    env = dict(os.environ)
+    for k in ("ZIPALIGN", "ANDROID_SDK_ROOT"):
+        env.pop(k, None)
+    env["AAPT2"] = str(foreign)
+    env["ANDROID_HOME"] = str(sdk)
+    env["PATH"] = os.pathsep.join(
+        d for d in env["PATH"].split(os.pathsep) if not os.path.exists(os.path.join(d, "zipalign"))
+    )
+    r = subprocess.run(["bash", str(VERIFY_APK), str(apk)], capture_output=True, text=True, timeout=30, env=env)
+    assert r.returncode == 0, r.stdout
+    assert "aapt2 at" in r.stdout and "cannot execute on this host" in r.stdout
+    assert "zipalign at" in r.stdout and r.stdout.count("cannot execute on this host") == 2

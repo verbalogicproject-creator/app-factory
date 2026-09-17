@@ -310,4 +310,6 @@ jobs:
             echo "::error::assembleDebug produced no APK under app/build/outputs/apk/debug"
             exit 1
           fi
-          bash scripts/verify-apk.sh "$APK"
+          # The SDK's build-tools are x86_64 only; without AAPT2 set, verify-apk would
+          # try to run them here and report the host, not the APK (third CI run, 2026-09-17).
+          AAPT2="$PWD/.appfactory/tmp/aapt2" bash scripts/verify-apk.sh "$APK"

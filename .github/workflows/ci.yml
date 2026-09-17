@@ -161,7 +161,9 @@ jobs:
           ./gradlew assembleDebug testDebugUnitTest --no-daemon --stacktrace \
             -Pandroid.aapt2FromMavenOverride="$PWD/.appfactory/tmp/aapt2"
           echo "BUILD_SECONDS=$(( SECONDS - START ))" >> "$GITHUB_ENV"
-          bash scripts/verify-apk.sh app/build/outputs/apk/debug/app-debug.apk
+          # The SDK's build-tools are x86_64 only; without AAPT2 set, verify-apk would
+          # try to run them here and report the host, not the APK (third CI run, 2026-09-17).
+          AAPT2="$PWD/.appfactory/tmp/aapt2" bash scripts/verify-apk.sh app/build/outputs/apk/debug/app-debug.apk
 
       - name: Build debug, release and run unit tests (x86_64)
         if: matrix.os == 'ubuntu-latest'
