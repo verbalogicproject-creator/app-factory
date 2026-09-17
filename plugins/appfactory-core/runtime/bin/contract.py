@@ -147,8 +147,16 @@ def build(a, today):
         parts = [p.strip() for p in u.split("|")]
         if len(parts) != 3:
             raise ValueError(f"--unverified needs 'claim | why | how', got {u!r}")
+        # A caller restating one of the defaults above replaces it rather than listing the
+        # claim twice (found in the v1 acceptance run): the caller's why/how are the more
+        # specific ones. Same claim = same text ignoring case and spacing.
+        unverified = [x for x in unverified if claim_key(x[0]) != claim_key(parts[0])]
         unverified.append(tuple(parts))
     return doc, unverified
+
+
+def claim_key(claim):
+    return " ".join(claim.lower().split())
 
 
 def write_all(out, doc, unverified):
@@ -206,10 +214,17 @@ def validate(out, today, check=None):
         if not os.path.isfile(os.path.join(out, name)):
             problems.append(f"missing {name}")
     upath = os.path.join(out, "UNVERIFIED.md")
+    seen_claims = {}
     if os.path.isfile(upath):
         for n, line in enumerate(open(upath, encoding="utf-8"), 1):
             if line.startswith("- ") and not UNVERIFIED_LINE.match(line.rstrip("\n")):
                 problems.append(f"UNVERIFIED.md:{n} must read '- [ ] claim | why | how'")
+            elif line.startswith("- "):
+                key = claim_key(UNVERIFIED_LINE.match(line.rstrip("\n")).group("claim"))
+                if key in seen_claims:
+                    problems.append(f"UNVERIFIED.md:{n} repeats the claim on line {seen_claims[key]}")
+                else:
+                    seen_claims[key] = n
     return problems
 
 

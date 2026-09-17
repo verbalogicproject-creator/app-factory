@@ -3,11 +3,12 @@
 The live tracking list. Every status below was checked against the tree on the date
 given, not read off a plan. When you change something, change the line here too.
 
-**Verified against the tree: 2026-09-17.** Branch `v1.0.0`, pushed; CI green on x86_64 and ARM.
-311 tests passing (304 fast + 7 `slow`), `scripts/repo-check.sh` clean. No device attached (`adb devices` empty).
+**v1.0.0 closed: 2026-09-17.** Branch `v1.0.0` merged to `main` and tagged. Every must-do
+for the release is in Done with its evidence; everything else is listed under
+"Deferred to v1.1" with its reason.
 
-Status key — `DONE` landed and verified · `OPEN` not started · `PARTIAL` started,
-named gap remains · `BLOCKED` waiting on something outside the repo.
+Status key — `DONE` landed and verified · `OPEN` not started · `BLOCKED` waiting on
+something outside the repo.
 
 ---
 
@@ -32,72 +33,47 @@ named gap remains · `BLOCKED` waiting on something outside the repo.
 | G2 | `webdetect.py` — web project → built bundle | `runtime/bin/webdetect.py` (`detect` / `locate` / `build`), `runtime/data/web-frameworks.json` (@vercel/frameworks 3.34.0, 70 entries, Apache-2.0, provenance in NOTICE), `scripts/vendor-web-frameworks.mjs`, 29 tests + 1 scaffold test. **Parity:** detection matched upstream `@vercel/fs-detectors` 7.3.0 on 56 of 56 dirs (50 synthetic single-framework, 5 supersedes combos, SAG-synth's real `package.json`). **End to end:** a fresh `npm create vite` app (vanilla-ts, default config) → `webdetect.py build` → `npm run build` → fresh `dist/` located. Limits, stated in the file: a server-rendered app is refused, not converted; an `index.html` that calls a server passes; no monorepo walking; the 18 frameworks detected by `matchContent` alone had no synthetic parity fixture (sveltekit-1 was covered via a combo). |
 | H0 | Hook and status-line stdin reads are bounded — an unbounded `cat` wedged the PRoot tracer and froze the session | `5dfcc0a`, `11b6335`, `tests/test_hooks_stdin_bound.py` |
 | G1 | Asset handler root-mounted; the white-screen trap closed | `WebShellScreen.kt` `BundleRootPathHandler`, 13 tests. Proven against SAG-synth's real `dist/`: ladder green through debug, and every reference in the built `index.html` resolves to a path that exists in the APK. **The on-device rung has not run — no device attached.** |
+| G1c/G1d | Instrumented rung on the device | 2026-09-14 on NX779J / API 35: `OK (6 tests)`; the page renders at full height |
+| V2 | Push and prove CI | Run `35183976083` (`a2bed2a`): self-check, x86_64 and ARM green, after four runs that found four real bugs (`03ae658`, `5d77f0a`, `a2bed2a`) |
+| — | adb-free device testing | Loopback is shared on the phone: `device-probe.sh` + `device_verdict.py` + app-declared checks (`d4146d6`, `c61f724`). Replaces G5 (adb install stage) and makes G6 optional |
+| — | Command server debug-only; WebView destroyed on release; `/__sag/crash`; preflight 220 | `9711c49`. The WebView leak stacked three audio engines on the phone |
+| A1 | Audio on the phone, measured | SAG's silence was a note stuck by swiping away mid-press (SAG-synth `02e7d7f`) plus the WebView leak; audio device-checks FAIL on the old build and PASS audibly on the fixed one (sag-synth-apk `e07fe6c`). Telemetry now reports pitch, DC, per-voice state and the audio clock (`5d5dc87`, `243f719`). A4b/A4c confirmed on the device the same day |
+| — | Research reports | `docs/research/apk-build-alternatives.md`, `docs/research/adb-free-device-testing.md` (`240969d`) |
+| — | Generated-app CI | First real generated repo (sag-synth-apk) failed three ways; fixed with `scaffold.py --refresh-runtime`, the Ktor R8 rule and non-fatal report uploads (`bc62dae`). Its next run: preflight, ARM and R8 green; only the debug-APK upload failed on the account's artifact quota (re-run pending) |
+| G1b | Preflight: bundle assets resolve | Check 230, 4 bug fixtures (`bc62dae`) |
+| V1 | Docs honesty pass | `bcc337b`: shipped skills no longer "planned", six nonexistent `pass_manager` commands removed, hotspot claim marked disproved |
+| M2a | The mode, on and off | 2026-09-17, fresh session in `v1-acceptance`: status line showed `● android-dev`, `off` removed it and wrote `enabled: false` (user screenshots) |
+| ACC | **The single acceptance test** | 2026-09-17, a fresh session with none of this context: stock Vite 8 + React 19 → contract → `webdetect` build → scaffold → ladder green (receipt `134537Z`) → signed R8 release, cert MATCH (`132915Z`) → installed → `device-probe` PASS (`20260917T134730Z`) → the user saw the page ("Count is 9"). Report: `/root/projects/v1-acceptance-apk/completion-report.md` |
+| ACC-fix | Template defects the acceptance run found | Outside links replaced the bundle (`LinkPolicy`, 10 tests); cold-start deep links dropped (`PendingLinks`, 5 tests); `singleTop` made a second activity (`singleTask`). Ported from the acceptance app into the template; UNVERIFIED claims no longer duplicate; skills scaffold web apps into a sibling folder |
 
 ---
 
-## Open — M: the mode
+## Deferred to v1.1
 
-| # | What | Size | Note |
-|---|---|---|---|
-| M2a | Prove the mode end to end after `/reload-plugins` | S | On → status line shows it → `/context` shows the payload → off → injection stops → restart → still on → compact → re-asserts. **Registration changes need `/reload-plugins`; the mode is not live until then.** |
-| M2b | Exercise the mode on a project that is not this one | S | The honest test. SAG-synth is the case Eyal described. |
-| M4 | `docs/CODEX-PORT.md` — the hand-off | M | Confirmed absent. What the mode is, why a state file rather than a skill, the exact payload, and the map onto `~/.agents/skills`, `~/.codex/prompts`, `~/.codex/hooks.json`, profiles. Must flag the conflict with the Android protocol already in `~/.codex/AGENTS.md`. |
+Nothing here blocks a working factory. Each keeps its original reason.
 
-## Open — G: the gaps that make `/android-dev <a web app>` actually work
-
-Ordered by how badly each breaks the stated use case.
-
-| # | What | Size | Status verified 2026-09-13 |
-|---|---|---|---|
-| G1c | Run the instrumented rung on the device | S | **RAN 2026-09-14 on NX779J / API 35. G1 CONFIRMED.** Every number that was zero is right: `host.height` 2381 (`isLaidOut: true`), `100vh`/`100dvh`/`100%` all 793.67, `bodyScrollHeight` 794, `pageFailures` 0, diagnostics empty. Screenshot shows the full synth UI rendering. 4 tests ran, 3 passed. The 1 failure was **the template's fault, not the app's** — `expected:<"SAG Web Shell Test Bundle"> but was:<"SAG-synth">`. Fixed; **needs one more device run to confirm green.** |
-| G1d | Re-run the instrumented rung after the fixture-coupling fix | S | **DONE 2026-09-14. `OK (6 tests), failures=0`** on NX779J/API 35. `theBundleRendersIntoANonZeroBox` passed; `fixtureAbsoluteAssetPathsResolve` correctly skipped with *"not the test fixture"*. Receipt `2026-09-14T224522Z-run.json`. |
-| G1e | Re-run once more with the command round-trip test | S | **PENDING A DEVICE.** Built; the device went offline before the run. The last sag-synth-apk receipt (`2026-09-15T032415Z-run.json`, dirty tree) stops at `debug` — no instrumented rung. |
-| G1b | Preflight check for absolute asset paths | S | **OPEN.** The factory now has 13 regression tests over the mount, but a *generated* project has no check that its own bundle's absolute paths resolve. That is still worth ~25 lines + fixtures. No maintained linter exists. |
-| G3 | `adopt` for an existing repo | M | **OPEN.** `scaffold.py` has no `adopt`; `--force` overwrites with no merge. Nothing maintained does template-overlay onto a foreign repo (`copier adopt` is an open issue), so this is ours — thin, and it refuses rather than guesses. |
-| G4 | Preflight vacuity | S | **OPEN.** Checks 020/150/170/210 all `pass` when `app/build.gradle.kts` is absent. An adopted multi-module repo goes green while being entirely unexamined. This is the corpus's founding failure class pointed at itself. |
-| G5 | `install` stage | S | **OPEN.** `ladder.py:31` STAGES has no `install`. Add `adb install` of the debug APK, and state plainly that a local *release* APK is unsigned and therefore not installable. |
-| G6 | ADB port discovery | S | **OPEN.** Termux's adb ships without mDNS, so `adb mdns services` cannot work here. Parse `avahi-browse -tpr _adb-tls-connect._tcp` — confirm avahi installs first, fall back to the manual port with a clear message. |
-| G7 | Multi-module | M | **OPEN.** `app/` is hardcoded. Use `./gradlew -q projects`; a `settings.gradle.kts` regex cannot be correct because the DSL is a real language. |
-| G8 | `--with-native` | S | **OPEN.** `scaffold.py:216` accepts it, stores it as a template token, and does nothing. Make it real or make it refuse honestly. |
-| G9 | Local signing | M | **OPEN.** Gradle's `signingConfig` needs a file. Decrypt from the vault to a short-lived path, sign post-build with bare `apksigner`, shred. |
-| G10 | Lattice expiry | S | **OPEN.** Check 140 warns when its own table is stale; the version lattice is dated 2026-08-15 and nothing warns. |
-
-## Open — A: audio (SAG-synth), decided 2026-09-14
-
-Full reasoning and claim table: `/root/projects/sag-synth-apk/AUDIO-PLAN.md`.
-Short version — the crackle campaign already happened, its fixes are in the bundle on the
-phone, and the telemetry built to measure it has **never produced a reading on a device**
-(4,813 observations, zero carrying `underrun_ratio`). So: measure, then decide.
-
-| # | What | When |
+| # | What | Why deferred / note |
 |---|---|---|
-| A0 | ~~Tap `▶ start`~~ — **DONE, and it was never the unlock.** The header showed `● live`, `dumpsys audio` showed two AAudio streams `state:started`, and the `−∞` was the output LEVEL METER reading an idle synth, not a volume control (`SynthApp.tsx` `aria-label="output level"`). Eyal's own screenshot then showed **−55 dB**: audio flows. | Done 2026-09-14 |
-| A1 | **Audio baseline on the phone** via `/__sag/observe` | **Rides with G1c** — same device, same sitting |
-| A2 | `wet: 0` effect-bypass cost | Only if A1 shows effects-dependent underruns |
-| A3 | Faust/Elementary spike | Only if A1 shows exhausted headroom; needs its own ADR |
-| ~~A4~~ | ~~Register `window.__sagNative`~~ — **WITHDRAWN, THE CLAIM WAS WRONG.** `native-bridge.ts:75` installs it and `engine.ts:135` wires the command bridge in the production branch. I reported a false negative from a `head -5`-truncated grep that matched only test files. | — |
-| ~~A4b~~ | **FIXED 2026-09-15** (SAG-synth `aa9255b`). `observeAudio()` was called only in `DebugApp`; extracted to a shared `useAudioObservation` hook and used by the instrument too. `/__sag/observe` should now fill on the surface people actually play. **Unverified on device.** | — |
-| ~~A4c~~ | **FIXED 2026-09-15** (same commit). `main.tsx` registers an `onNativeIntent` listener; `surfaceFromIntent()` is pure and covered by 17 tests. `sagsynth://debug` opens the debug wall, anything unreadable opens the instrument. **Unverified on device.** | — |
+| G3 | `adopt` for an existing repo | `--refresh-runtime` covers keeping a generated app current; adopting a foreign repo is its own design |
+| G4 | Preflight vacuity | Checks 020/150/170/210 pass when `app/build.gradle.kts` is absent |
+| G6 | adb port discovery | Only for the optional `instrumented` stage now; `device-probe` needs no adb |
+| G7 | Multi-module | `app/` is hardcoded |
+| G8 | `--with-native` | Accepted and inert; make it refuse honestly or implement |
+| G9 | Local signing | The acceptance run had to decode the keystore by hand; `pass_manager` has no export (finding 9) |
+| G10 | Lattice expiry | Nothing warns when the version lattice ages |
+| M2b | The mode on another existing project | M2a and the acceptance run covered the mode on a new one |
+| M4 | `docs/CODEX-PORT.md` | Hand-off doc |
+| A2/A3 | Effect-bypass cost, Faust spike | Only if headroom runs out; the audio clock check now measures it |
+| V3 | Play internal track | **Blocked on Eyal**: the first manual AAB upload |
+| L1/L2 | Reconcile the updates log; mine `verbalogix-companion` | See below |
+| ACC-4 | Default build host `termux` fails when sshd is down | `local-build.sh` should fall back to `proot` and say so |
+| ACC-8 | `vault.passphrase` stored beside `vault.json`, both in one Drive backup | **Security, user action first:** take the passphrase out of that backup. Then `pass_manager doctor` should flag it |
+| ACC-10 | `verify_mapping.py` ignores `@JavascriptInterface` methods | R8 keeping the WebView bridge is unproven for release |
+| ACC-11 | `device-probe` cannot force-stop for a clean process | Termux `am` has no `force-stop` |
+| ACC-12 | No page-side bridge for plain web apps | `/__sag/command` answers "no page answered" until the web app installs `window.__sagNative` |
+| CI-quota | sag-synth-apk debug-APK upload | Re-run after GitHub recalculates artifact storage |
 
-## Open — V: finishing v1.0.0
-
-| # | What | Size | Status |
-|---|---|---|---|
-| V1 | Docs honesty pass | S | **OPEN, confirmed.** `docs/PLUGIN-ROADMAP.md` still says `plan`, `verify` and `release` are "Planned in v1.0.0, not yet present" — all three exist. Also: README and `GETTING-STARTED.md` carry the same claim; `SECRETS.md` lists `pass_manager` subcommands that never existed; `LOCAL-BUILDS.md:239` asserts the phone's own hotspot is sufficient for wireless debugging, **disproved on this device, cause unknown — mark it, do not rewrite it.** |
-| V2 | Push and prove CI | M | **DONE 2026-09-17.** Pushed to `github.com/verbalogicproject-creator/app-factory` (public; the private `appfactory` remote is kept as `old-private`; full history secret-scanned first). Run `35183976083` on `a2bed2a`: self-check, x86_64 and **ARM all green**; aapt2 parses the APK on both legs, 3 unit tests each, zipalign `-P 16` confirmed on x86 and skipped (no native zipalign) on ARM. It took four runs; the three it found were all real: oldest-first `build-tools` glob (`03ae658`), setup-android's removed `tools` package (`03ae658`), `yes \| sdkmanager` SIGPIPE under pipefail (`5d77f0a`), x86 aapt2 run on ARM and reported as an APK defect (`a2bed2a`). **Not yet exercised:** the generated-app template workflows (`ci.yml`, `release.yml`) on a real generated repo — the fixes were applied to them, not proven there. |
-| V3 | Play internal-track acceptance | M | **BLOCKED** on one human step: the first manual AAB upload in Play Console, plus inviting the service account. |
-
-## Open — L: the updates log has itself drifted
-
-`appfactory-updates-log.md` tallies **15 entries, 13 open** — but it was written in Aug 2026
-against the Localmind project, and work since then has closed some of them without the log
-being updated. Entry 3 ("the verification ladder has no on-device rung") is the clearest
-example: the rung exists, is wired, and caught the Ktor crash.
-
-| # | What | Size |
-|---|---|---|
-| L1 | Reconcile the 15 entries against the tree; close what is closed, keep the evidence | M |
-| L2 | **Mine `verbalogix-companion` for device knowledge** | M |
+### L2 note
 
 `/storage/emulated/0/Download/claude-projects/verbalogix-companion` is in NEITHER documented
 root, and has now held the answer to two problems this project derived the hard way: the Ktor
@@ -120,20 +96,6 @@ log you stop trusting.
 
 ---
 
-## Order
-
-```
-M2a reload+prove ─► M2b other project
-G1 root-mount ✔ ─► G1c on device ✔ ─► G2 webdetect ✔ ─► acceptance test on the phone ─► the "/android-dev <web app>" case works
-G4 vacuity ─► G3 adopt ─► G5 install ─► G6..G10
-V1 docs ─► V2 push+CI ──────────────────────────► V3 Play  (blocked on Eyal)
-M4 codex doc, L1 log reconcile — any time
-```
-
-Critical path is now **the acceptance test below, on the phone**. G1, G1c and G2 are done;
-every piece of the chain exists, but no single run has gone from an unbuilt web project to
-the page rendering on the device. That run needs the phone attached (also clears G1e, A1).
-
 ## The single acceptance test
 
 In a scratch Vite app with **default config and absolute asset paths**:
@@ -151,3 +113,9 @@ handed a bundle (G2).
 **2026-09-17:** G2 landed, so the front half now exists — `webdetect.py build` took a
 default-config Vite scratch app to a located, fresh `dist/`. The chain has still never been
 run as one piece onto the phone.
+
+**2026-09-17, later: PASSED as one piece.** A fresh Claude Code session with none of this
+board's context ran the whole chain on a stock Vite 8 + React 19 app, onto the phone, with a
+receipt per rung — see ACC in Done. It also found three template defects that every earlier
+proof had missed (outside links, cold-start deep links, a duplicate activity); they are
+fixed in the template (ACC-fix). That is what the test was for.

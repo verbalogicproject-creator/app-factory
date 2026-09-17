@@ -131,3 +131,26 @@ def test_validate_rejects_bad_scheme(tmp_path, contract):
     toml = out / "lattice.toml"
     toml.write_text(toml.read_text().replace('deeplink_scheme = ""', 'deeplink_scheme = "Bad Scheme"'))
     assert contract.validate(str(out), date(2026, 9, 13), CHECK_140)
+
+
+def test_restating_a_default_unverified_claim_replaces_it(tmp_path):
+    # v1 acceptance run: passing the repo and Play claims again listed each twice.
+    out = tmp_path / "c"
+    r = run("init", "--out", str(out), "--application-id", "com.example.d", "--app-name", "D",
+            "--unverified", "Play package exists | sideload only for now | decide before any Play upload",
+            "--unverified", "github REPO owner/name | deferred | create it when the app goes further")
+    assert r.returncode == 0, r.stderr
+    lines = [l for l in (out / "UNVERIFIED.md").read_text().splitlines() if l.startswith("- [ ]")]
+    assert sum("play package exists" in l.lower() for l in lines) == 1
+    assert sum("repo owner/name" in l.lower() for l in lines) == 1
+    assert any("sideload only for now" in l for l in lines)
+    assert run("validate", str(out)).returncode == 0
+
+
+def test_validate_flags_a_repeated_claim(tmp_path):
+    out = tmp_path / "c"
+    run("init", "--out", str(out), "--application-id", "com.example.d", "--app-name", "D")
+    with open(out / "UNVERIFIED.md", "a") as f:
+        f.write("- [ ] Signing  profile | typed again | by hand\n")
+    v = run("validate", str(out))
+    assert v.returncode == 1 and "repeats the claim" in v.stdout

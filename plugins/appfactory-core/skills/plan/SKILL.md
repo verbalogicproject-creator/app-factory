@@ -43,14 +43,18 @@ Ask one thing at a time with `AskUserQuestion`; say why each is asked in this po
 ## Write it
 
 ```bash
-python3 .appfactory/bin/contract.py init --out .appfactory/contract \
+python3 "${CLAUDE_PLUGIN_ROOT}/runtime/bin/contract.py" init --out .appfactory/contract \
     --application-id <id> --app-name "<name>" [--kind web-shell --web-dir <dist> --deeplink-scheme <s>] \
     [--schema-version 1] [--repo owner/name] [--signing-profile <p>] [--play-registered] \
     [--unverified "claim | why | how to verify"]...
-python3 .appfactory/bin/contract.py validate .appfactory/contract
+python3 "${CLAUDE_PLUGIN_ROOT}/runtime/bin/contract.py" validate .appfactory/contract
 ```
 
-(In the factory repo itself the tool is at `plugins/appfactory-core/runtime/bin/contract.py`.)
+Use the plugin's copy: the contract is written BEFORE scaffolding, when the project has no
+`.appfactory/bin/` yet. After scaffolding, `.appfactory/bin/contract.py` is the same tool.
+`init` already lists the repo, signing profile and Play package as UNVERIFIED when they are
+not given; passing one of those claims again with `--unverified` replaces the default line
+rather than duplicating it.
 
 `init` writes three files and refuses to leave an invalid contract behind:
 

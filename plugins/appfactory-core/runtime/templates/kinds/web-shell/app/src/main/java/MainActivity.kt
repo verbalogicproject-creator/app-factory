@@ -21,9 +21,12 @@ import dagger.hilt.android.AndroidEntryPoint
  * is @HiltAndroidApp on the Application class AND android:name in the manifest
  * pointing at it. See preflight check 060.
  *
- * launchMode="singleTop": a deep link arriving while the app is already the
- * foreground activity must reach onNewIntent, not spin up a second instance with
- * its own (empty) WebView.
+ * launchMode="singleTask": a deep link must reach the ONE existing MainActivity via
+ * onNewIntent, never spin up a second instance with its own WebView and page. The
+ * earlier singleTop only reused the activity when it was already on top of the SAME
+ * task; observed on the phone 2026-09-17, the first link after a cold start created
+ * a fresh page (its received-links list lost the cold-start link) while later links
+ * reached it -- a second WebView, with the first possibly still running.
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -48,7 +51,9 @@ class MainActivity : ComponentActivity() {
                 WebShellScreen()
             }
         }
-        deliverIntent(intent)
+        // Only on a fresh start: a recreated activity (rotation, process restore) still
+        // carries the launch intent, and delivering it again would repeat the link.
+        if (savedInstanceState == null) deliverIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -62,16 +67,16 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    /** Forwards a VIEW deep link to the page as window.__sagNative.onIntent(uri). */
+    /**
+     * Queues a VIEW deep link for the page's window.__sagNative.onIntent(uri). It is
+     * delivered now if a loaded page exists, otherwise by WebShellScreen's
+     * onPageFinished -- see [{{APPLICATION_ID}}.bridge.PendingLinks] for the
+     * cold start this used to lose.
+     */
     private fun deliverIntent(intent: Intent?) {
         val uri = intent?.data?.toString() ?: return
-        // Single-quoted JS string literal: escape backslash first, then the quote
-        // that delimits it, in that order -- reversing it would double-escape.
-        val escaped = uri.replace("\\", "\\\\").replace("'", "\\'")
-        NativeBridge.webView?.evaluateJavascript(
-            "window.__sagNative && window.__sagNative.onIntent('$escaped')",
-            null,
-        )
+        NativeBridge.pendingLinks.add(uri)
+        NativeBridge.flushLinks()
     }
 
     private fun requestNotificationPermissionIfNeeded() {

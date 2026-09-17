@@ -49,6 +49,29 @@ object NativeBridge {
     @Volatile
     var webView: WebView? = null
 
+    /**
+     * The WebView whose page has finished loading, so window.__sagNative exists in it.
+     * Set by onPageFinished, cleared by onPageStarted (a reload) and on teardown.
+     * Deliberately separate from [pageLoaded], which is never reset and so cannot say
+     * whether THIS WebView is ready.
+     */
+    @Volatile
+    var readyWebView: WebView? = null
+
+    /** Deep links not yet handed to a ready page. */
+    val pendingLinks = PendingLinks()
+
+    /** Delivers every queued deep link to the ready page, if there is one. Main thread only. */
+    fun flushLinks() {
+        val view = readyWebView ?: return
+        for (uri in pendingLinks.drain()) {
+            view.evaluateJavascript(
+                "window.__sagNative && window.__sagNative.onIntent(${PendingLinks.jsString(uri)})",
+                null,
+            )
+        }
+    }
+
     /** Flipped by WebShellScreen's WebViewClient.onPageFinished; read by GET /__sag/health. */
     @Volatile
     var pageLoaded: Boolean = false

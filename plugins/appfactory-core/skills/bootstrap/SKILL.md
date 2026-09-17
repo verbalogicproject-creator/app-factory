@@ -54,8 +54,15 @@ python3 "${CLAUDE_PLUGIN_ROOT}/runtime/bin/scaffold.py" <target-dir> \
     --application-id <id> --app-name "<name>" --min-sdk 28 --target-sdk 36
 ```
 
-For `--kind web-shell`, `--web-dir` must be a **built** bundle. Get it from the web
-project rather than guessing at `dist/`:
+For `--kind web-shell`, `<target-dir>` is a **sibling** of the web project (e.g.
+`my-web-app-apk` next to `my-web-app`), never the web project itself — Gradle must not mix
+with the web source, and scaffolding into a non-empty directory needs `--force`, which
+would be the wrong fix. Later bundle updates use the shell's `scripts/sync-web.sh`, never a
+re-scaffold (that overwrites the app's own fixes); factory updates use
+`scaffold.py --refresh-runtime`, which touches only vendored runtime files.
+
+`--web-dir` must be a **built** bundle. Get it from the web project rather than guessing at
+`dist/`:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/runtime/bin/webdetect.py" build <web-project>   # JSON; use "webDir"

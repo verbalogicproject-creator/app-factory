@@ -1,7 +1,11 @@
 package {{APPLICATION_ID}}.web
 
 import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.net.Uri
 import android.util.Log
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
@@ -22,6 +26,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
 import {{APPLICATION_ID}}.bridge.NativeBridge
 import {{APPLICATION_ID}}.bridge.PageLog
+import java.net.URISyntaxException
 
 private const val TAG = "WebShell"
 
@@ -54,6 +59,41 @@ private class BundleRootPathHandler(context: Context) : WebViewAssetLoader.PathH
     private companion object {
         /** Kept in step with scaffold.py's copytree target and sync-web.sh's DEST. */
         const val BUNDLE_DIR = "web/"
+    }
+}
+
+/**
+ * Hands a URL to whichever app handles it. `intent:` URLs are parsed the way Chrome
+ * does it -- stripped of any explicit component or selector so page content cannot
+ * aim at one specific activity -- and fall back to their `browser_fallback_url` when
+ * nothing on the phone handles them.
+ */
+private fun openExternally(context: Context, url: String) {
+    val intent = if (url.startsWith("intent:", ignoreCase = true)) {
+        try {
+            Intent.parseUri(url, Intent.URI_INTENT_SCHEME).apply {
+                component = null
+                selector = null
+                addCategory(Intent.CATEGORY_BROWSABLE)
+            }
+        } catch (e: URISyntaxException) {
+            NativeBridge.pageLog.add(PageLog.Entry(PageLog.Kind.LOG, "unparseable intent link", url))
+            return
+        }
+    } else {
+        Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE)
+    }
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    try {
+        context.startActivity(intent)
+    } catch (e: ActivityNotFoundException) {
+        val fallback = LinkPolicy.fallbackTarget(intent.getStringExtra("browser_fallback_url"))
+        if (fallback != null) {
+            openExternally(context, fallback)
+        } else {
+            NativeBridge.pageLog.add(PageLog.Entry(PageLog.Kind.LOG, "no app handles link", url))
+            Log.d(TAG, "no activity for $url")
+        }
     }
 }
 
@@ -148,6 +188,29 @@ fun WebShellScreen(modifier: Modifier = Modifier) {
                                 request: WebResourceRequest,
                             ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
 
+                            /** Outside links open in the browser (or the app that owns the
+                             * scheme) instead of replacing the bundle with no way back.
+                             * The decision lives in [LinkPolicy]; this only carries it out. */
+                            override fun shouldOverrideUrlLoading(
+                                view: WebView,
+                                request: WebResourceRequest,
+                            ): Boolean {
+                                val url = request.url.toString()
+                                return when (LinkPolicy.route(url, request.isForMainFrame)) {
+                                    LinkPolicy.Route.STAY -> false
+                                    LinkPolicy.Route.BLOCK -> {
+                                        NativeBridge.pageLog.add(
+                                            PageLog.Entry(PageLog.Kind.LOG, "blocked navigation", url),
+                                        )
+                                        true
+                                    }
+                                    LinkPolicy.Route.EXTERNAL -> {
+                                        openExternally(view.context, url)
+                                        true
+                                    }
+                                }
+                            }
+
                             override fun onReceivedError(
                                 view: WebView,
                                 request: WebResourceRequest,
@@ -193,6 +256,18 @@ fun WebShellScreen(modifier: Modifier = Modifier) {
                             override fun onPageFinished(view: WebView, url: String?) {
                                 super.onPageFinished(view, url)
                                 NativeBridge.pageLoaded = true
+                                // Only the bundle counts as ready: onRelease loads about:blank
+                                // before destroy(), and that finishes too.
+                                if (url?.startsWith("https://${LinkPolicy.APP_HOST}/") == true) {
+                                    NativeBridge.readyWebView = view
+                                    NativeBridge.flushLinks()
+                                }
+                            }
+
+                            override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+                                super.onPageStarted(view, url, favicon)
+                                // A (re)loading page has no __sagNative yet; links wait.
+                                if (NativeBridge.readyWebView === view) NativeBridge.readyWebView = null
                             }
                         }
                         loadUrl("https://appassets.androidplatform.net/index.html")
@@ -210,6 +285,7 @@ fun WebShellScreen(modifier: Modifier = Modifier) {
                 // from the app or from any other app while they ran.
                 onRelease = { webView ->
                     if (NativeBridge.webView === webView) NativeBridge.webView = null
+                    if (NativeBridge.readyWebView === webView) NativeBridge.readyWebView = null
                     webView.stopLoading()
                     // Blank first so page teardown (and AudioContext close) runs before destroy.
                     webView.loadUrl("about:blank")

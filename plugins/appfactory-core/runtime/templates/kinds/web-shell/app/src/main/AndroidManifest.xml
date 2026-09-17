@@ -29,14 +29,14 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
             android:label="@string/app_name"
             android:theme="@style/Theme.{{APP_CLASS}}">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Deep link: MainActivity is singleTop, so a link arriving while the
+            <!-- Deep link: MainActivity is singleTask, so a link arriving while the
                  app is already open reaches onNewIntent rather than a new instance,
                  and onNewIntent forwards it to the page as window.__sagNative.onIntent(). -->
             <intent-filter>

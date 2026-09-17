@@ -50,7 +50,7 @@ needs reloading.
 ### 2. Establish the shared mental model — once per project
 
 **If `.appfactory/contract/lattice.toml` already exists**, read it, run
-`python3 .appfactory/bin/contract.py validate .appfactory/contract`, and report in one
+`python3 "${CLAUDE_PLUGIN_ROOT}/runtime/bin/contract.py" validate .appfactory/contract`, and report in one
 line what the project is: applicationId, kind, targetSdk, and anything still listed in
 `UNVERIFIED.md`. Do not re-interview. Go to step 3.
 
@@ -61,7 +61,7 @@ questions are informed rather than generic:
 | What you find | What it means |
 |---|---|
 | `app/build.gradle.kts` or `*.kt` | an existing Android project — adopt, do not scaffold over it |
-| `package.json` with a build script, `vite.config.*`, `next.config.*`, `astro.config.*` | a web project — `--kind web-shell`, and it needs a **built** bundle: run `python3 "${CLAUDE_PLUGIN_ROOT}/runtime/bin/webdetect.py" detect <dir>` to name the framework and build command, then `webdetect.py build <dir>` (ask first — it runs the project's install and build) and pass its `webDir` to `scaffold.py --web-dir` |
+| `package.json` with a build script, `vite.config.*`, `next.config.*`, `astro.config.*` | a web project — `--kind web-shell`, and it needs a **built** bundle: run `python3 "${CLAUDE_PLUGIN_ROOT}/runtime/bin/webdetect.py" detect <dir>` to name the framework and build command, then `webdetect.py build <dir>` (ask first — it runs the project's install and build) and pass its `webDir` to `scaffold.py --web-dir`. Scaffold into a **sibling** folder (`<web-project>-apk`), never into the web project: Gradle files must not mix with the web source, and scaffolding a non-empty directory needs `--force`, which is the wrong signal. Later bundle updates go through the shell's `scripts/sync-web.sh` |
 | neither | a new app — `--kind compose` |
 
 Then run `/appfactory-core:plan`, which owns the interview and writes the contract. Feed
