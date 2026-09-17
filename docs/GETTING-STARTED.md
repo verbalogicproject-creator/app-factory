@@ -87,8 +87,8 @@ were *not* run.
   release/cert.sha256          the pinned signing identity (public, safe to commit)
   preflight-ignore             suppressions, each requiring a written reason
   bin/                         vendored tools
-  contract/                    planned — decisions from the `plan` skill's interview
-  receipts/                    planned — one JSON receipt per verification-ladder stage
+  contract/                    decisions from the `plan` skill's interview
+  receipts/                    one JSON receipt per ladder run and per device-probe
 scripts/
   preflight.sh                 the runner
   preflight/checks/            23 checks

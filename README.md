@@ -152,14 +152,15 @@ on every run. Silent suppression is how check corpora die.
 
 ## Plugins
 
-One plugin, `appfactory-core`, with four skills:
+One plugin, `appfactory-core`, with five skills:
 
 | Skill | Status |
 |---|---|
 | `bootstrap` | present — walking-skeleton scaffold, described above |
-| `plan` | planned in v1.0.0, not yet present — interview → `.appfactory/contract/` |
-| `verify` | planned in v1.0.0, not yet present — the local ladder, preflight through release |
-| `release` | planned in v1.0.0, not yet present — tag → CI → signed APK/AAB → cert pin → Play internal track |
+| `plan` | present — interview → `.appfactory/contract/` |
+| `verify` | present — the local ladder: preflight → compile → unit → lint → debug → verify-apk → instrumented (optional, adb) → `device` (no adb, `device-probe.sh`) → release |
+| `release` | present — tag → CI → signed APK/AAB → cert pin → Play internal track; the Play leg is unproven (needs the first manual AAB upload) |
+| `android-dev` | present — a mode: while on, every Android build in the session goes through this pipeline |
 
 The repository previously advertised three additional plugins
 (`appfactory-plan`, `appfactory-ui`, `appfactory-build`) as manifest-only stubs. They
@@ -198,8 +199,13 @@ tested Room migration and a certificate pinned and verified before each publish.
 was built on, closing a gap this repo had documented as open since the start. See
 [`docs/LOCAL-BUILDS.md`](docs/LOCAL-BUILDS.md).
 
-**Not proven:** the `plan`, `verify` and `release` skills — planned in v1.0.0, not yet
-present; anything about multi-module projects. The check corpus is regex-shaped and
+**Proven on the phone, no adb:** `device-probe.sh` installs through the user's tap, launches
+over Termux `am`, and judges the rendered page and app-declared checks over the phone's
+shared loopback — it caught a stuck-note bug in a real app before its fix and passed after.
+See [`docs/research/adb-free-device-testing.md`](docs/research/adb-free-device-testing.md).
+
+**Not proven:** the Play internal-track leg of `release` (blocked on the first manual AAB
+upload in Play Console); anything about multi-module projects. The check corpus is regex-shaped and
 derived from single-module Compose apps, and is advertised as such. On local builds
 specifically: no local emulator (needs an x86_64 image and KVM), no local signing, and a
 toolchain assembled once, on one device, against one repo.
@@ -207,7 +213,7 @@ toolchain assembled once, on one device, against one repo.
 **Historical:** [`appfactory-conformance`](https://github.com/verbalogicproject-creator/appfactory-conformance)
 was a separate repo (v0.0.2) used to check `bootstrap`'s scaffold against a
 byte-for-byte reproduction. It is frozen; the factory's own CI building its scaffolded
-demo app is planned to supersede it in v1.0.0.
+demo app supersedes it: `ci.yml` scaffolds a demo and builds it on x86_64 and ARM.
 
 **Top maintenance risk:** version rot. AGP, Kotlin, KSP and Compose form a tight
 compatibility lattice and runner images move underneath it. Version matrices are dated

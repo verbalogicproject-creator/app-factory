@@ -239,6 +239,11 @@ Wireless debugging needs a **Wi-Fi interface**, not a Wi-Fi *network*. The phone
 portable hotspot is enough, and it is far more stable than joining a network — every drop
 kills wireless debugging and rotates the port.
 
+> **Disproved on the build phone (NX779J), cause unknown.** The hotspot did not give a
+> working wireless-debugging connection there. The claim is kept, marked, not rewritten,
+> until someone finds out why. For most on-device checks adb is no longer needed at all:
+> see `scripts/device-probe.sh` and `docs/research/adb-free-device-testing.md`.
+
 1. Settings → Developer options → **Wireless debugging** → on
 2. **Pair device with pairing code** — once, ever:
    `adb pair localhost:<pairing-port> <code>`
@@ -266,9 +271,8 @@ done
 
 The instrumentation package is `<applicationId>.debug.test`, not `<applicationId>.test`
 — the debug build has `applicationIdSuffix = ".debug"`, and the test APK's package
-carries that suffix plus `.test`. A scripted form of this sequence
-(`scripts/local-build.sh instrumented`) is planned in v1.0.0; today it is copy-paste
-shell.
+carries that suffix plus `.test`. The scripted form of this sequence is
+`scripts/local-build.sh instrumented` (runs `scripts/device-instrument.sh`).
 
 Five things cost real time to learn:
 

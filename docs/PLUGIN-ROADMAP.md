@@ -10,12 +10,15 @@ now-stale in-progress framing.
 One plugin, `appfactory-core`, not four. Four skills inside it:
 
 - `bootstrap` — present.
-- `plan` — interview → `.appfactory/contract/`. Planned in v1.0.0, not yet present.
+- `plan` — interview → `.appfactory/contract/`. Present.
 - `verify` — the local ladder: preflight → compile → unit → lint → debug APK →
-  verify-apk → on-device instrumented over loopback adb → release. Planned in v1.0.0,
-  not yet present.
+  verify-apk → on-device instrumented over loopback adb → release. Present; v1.0.0 also
+  added a `device` stage that needs no adb.
 - `release` — tag → CI → signed APK/AAB → cert pin → Play internal track via Gradle
-  Play Publisher. Planned in v1.0.0, not yet present.
+  Play Publisher. Present; the Play leg is unproven.
+
+A fifth skill, `android-dev`, was added in v1.0.0: a mode that routes every Android build in
+a session through the pipeline.
 
 This supersedes this document's earlier "Decision 2" (three plugins: fold `-build` into
 core, keep `-plan` and `-ui` separate). The one-plugin, four-skill shape is the plan of

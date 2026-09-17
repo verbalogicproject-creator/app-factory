@@ -47,23 +47,24 @@ silent attempts here. Rejected on principle, not preference.
 
 ```
 pass_manager.py init                 create the vault
-                profile              per-app settings
                 keygen               generate a release keystore into the vault
-                import-keystore      adopt an existing .jks
-                get / set            read and write values
-                materialize          write a keystore to a temp path for a build
-                shred                remove it again
-                sync                 push credentials to GitHub Actions
-                canary               PROVE a secret arrived
-                doctor               five probes, each naming a distinct cause
-                rotate-passphrase
-                backup
+                import-keystore      adopt an existing loose .jks
+                set-file             store a file's contents as a named secret
+                sync                 push signing (and set-file) secrets to GitHub, then read back
+                doctor               probe every known silent-failure mode
+                canary               PROVE a secret's value arrived, not just its name
                 verify-apk           SDK-free signature check on the phone
 ```
 
+Checked against `pass_manager.py --help` on 2026-09-17. An earlier version of this list
+named `profile`, `get`/`set`, `materialize`, `shred`, `rotate-passphrase` and `backup`;
+none of them exist. Local signing without CI (materialize a keystore for one build, then
+shred it) is board item G9, deferred to v1.1.
+
 **Values arrive on stdin only.** Never argv — `ps` exposes it — and never shell
-history. A bare invocation prints a numbered menu and **exits loudly on a missing TTY**
-rather than hanging or silently doing nothing.
+history. A bare invocation prints the usage and exits; it never waits on a prompt.
+(An earlier version of this page promised a numbered menu that exits on a missing TTY;
+checked 2026-09-17, it does not exist.)
 
 ## The canary, and why it is not optional
 
