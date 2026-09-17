@@ -3,8 +3,8 @@
 The live tracking list. Every status below was checked against the tree on the date
 given, not read off a plan. When you change something, change the line here too.
 
-**Verified against the tree: 2026-09-14.** Branch `v1.0.0`.
-252 tests passing, `scripts/repo-check.sh` clean.
+**Verified against the tree: 2026-09-17.** Branch `v1.0.0`, no upstream.
+278 tests passing, `scripts/repo-check.sh` clean. No device attached (`adb devices` empty).
 
 Status key — `DONE` landed and verified · `OPEN` not started · `PARTIAL` started,
 named gap remains · `BLOCKED` waiting on something outside the repo.
@@ -27,7 +27,9 @@ named gap remains · `BLOCKED` waiting on something outside the repo.
 | G0 | Blocked commands now say plainly that nothing in them ran | `3ba946a` — `NOTHING_RAN` |
 | M1 | Plugin installed and enabled; guards observed blocking live | `~/.claude/settings.json` → `appfactory-core@appfactory: true` |
 | M2 | `/android-dev` is a mode: state file + `UserPromptSubmit` anchor + `SessionStart(compact)` doctrine | `d898834`, 37 tests |
+| M1a | Plugin-install receipt written | `~/.appfactory/receipts/plugin-install.txt` (2026-09-13). The board carried this as open for four days after it existed. |
 | M2 | Status line wired into `~/.claude/settings.json`; fragment gained a composition path and 28 tests | this pass |
+| H0 | Hook and status-line stdin reads are bounded — an unbounded `cat` wedged the PRoot tracer and froze the session | `5dfcc0a`, `11b6335`, `tests/test_hooks_stdin_bound.py` |
 | G1 | Asset handler root-mounted; the white-screen trap closed | `WebShellScreen.kt` `BundleRootPathHandler`, 13 tests. Proven against SAG-synth's real `dist/`: ladder green through debug, and every reference in the built `index.html` resolves to a path that exists in the APK. **The on-device rung has not run — no device attached.** |
 
 ---
@@ -36,7 +38,6 @@ named gap remains · `BLOCKED` waiting on something outside the repo.
 
 | # | What | Size | Note |
 |---|---|---|---|
-| M1a | Write the missing `receipts/plugin-install.txt` | S | The plugin is installed and the guards demonstrably fire, but the plan's receipt was never written. A guard observed blocking and *not recorded* is the same gap the corpus criticises elsewhere. |
 | M2a | Prove the mode end to end after `/reload-plugins` | S | On → status line shows it → `/context` shows the payload → off → injection stops → restart → still on → compact → re-asserts. **Registration changes need `/reload-plugins`; the mode is not live until then.** |
 | M2b | Exercise the mode on a project that is not this one | S | The honest test. SAG-synth is the case Eyal described. |
 | M4 | `docs/CODEX-PORT.md` — the hand-off | M | Confirmed absent. What the mode is, why a state file rather than a skill, the exact payload, and the map onto `~/.agents/skills`, `~/.codex/prompts`, `~/.codex/hooks.json`, profiles. Must flag the conflict with the Android protocol already in `~/.codex/AGENTS.md`. |
@@ -49,7 +50,7 @@ Ordered by how badly each breaks the stated use case.
 |---|---|---|---|
 | G1c | Run the instrumented rung on the device | S | **RAN 2026-09-14 on NX779J / API 35. G1 CONFIRMED.** Every number that was zero is right: `host.height` 2381 (`isLaidOut: true`), `100vh`/`100dvh`/`100%` all 793.67, `bodyScrollHeight` 794, `pageFailures` 0, diagnostics empty. Screenshot shows the full synth UI rendering. 4 tests ran, 3 passed. The 1 failure was **the template's fault, not the app's** — `expected:<"SAG Web Shell Test Bundle"> but was:<"SAG-synth">`. Fixed; **needs one more device run to confirm green.** |
 | G1d | Re-run the instrumented rung after the fixture-coupling fix | S | **DONE 2026-09-14. `OK (6 tests), failures=0`** on NX779J/API 35. `theBundleRendersIntoANonZeroBox` passed; `fixtureAbsoluteAssetPathsResolve` correctly skipped with *"not the test fixture"*. Receipt `2026-09-14T224522Z-run.json`. |
-| G1e | Re-run once more with the command round-trip test | S | **PENDING A DEVICE.** Built; the device went offline before the run. |
+| G1e | Re-run once more with the command round-trip test | S | **PENDING A DEVICE.** Built; the device went offline before the run. The last sag-synth-apk receipt (`2026-09-15T032415Z-run.json`, dirty tree) stops at `debug` — no instrumented rung. |
 | G1b | Preflight check for absolute asset paths | S | **OPEN.** The factory now has 13 regression tests over the mount, but a *generated* project has no check that its own bundle's absolute paths resolve. That is still worth ~25 lines + fixtures. No maintained linter exists. |
 | G2 | `runtime/bin/webdetect.py` | M | **OPEN.** No such file. Vendor `@vercel/frameworks` (Apache-2.0) as JSON for `buildCommand` + `outputDirectory`. Netlify's `framework-info` is deprecated; `@netlify/build-info` is the fallback. |
 | G3 | `adopt` for an existing repo | M | **OPEN.** `scaffold.py` has no `adopt`; `--force` overwrites with no merge. Nothing maintained does template-overlay onto a foreign repo (`copier adopt` is an open issue), so this is ours — thin, and it refuses rather than guesses. |
