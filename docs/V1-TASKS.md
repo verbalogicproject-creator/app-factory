@@ -3,8 +3,8 @@
 The live tracking list. Every status below was checked against the tree on the date
 given, not read off a plan. When you change something, change the line here too.
 
-**Verified against the tree: 2026-09-17.** Branch `v1.0.0`, no upstream.
-308 tests passing (301 fast + 7 `slow`), `scripts/repo-check.sh` clean. No device attached (`adb devices` empty).
+**Verified against the tree: 2026-09-17.** Branch `v1.0.0`, pushed; CI green on x86_64 and ARM.
+311 tests passing (304 fast + 7 `slow`), `scripts/repo-check.sh` clean. No device attached (`adb devices` empty).
 
 Status key — `DONE` landed and verified · `OPEN` not started · `PARTIAL` started,
 named gap remains · `BLOCKED` waiting on something outside the repo.
@@ -84,7 +84,7 @@ phone, and the telemetry built to measure it has **never produced a reading on a
 | # | What | Size | Status |
 |---|---|---|---|
 | V1 | Docs honesty pass | S | **OPEN, confirmed.** `docs/PLUGIN-ROADMAP.md` still says `plan`, `verify` and `release` are "Planned in v1.0.0, not yet present" — all three exist. Also: README and `GETTING-STARTED.md` carry the same claim; `SECRETS.md` lists `pass_manager` subcommands that never existed; `LOCAL-BUILDS.md:239` asserts the phone's own hotspot is sufficient for wireless debugging, **disproved on this device, cause unknown — mark it, do not rewrite it.** |
-| V2 | Push and prove CI | M | **OPEN.** `v1.0.0` has **no upstream** — never pushed. The ARM leg and the `build-demo` job have never run once. This is the only rung that cannot be tested locally and the most likely source of the next surprise. |
+| V2 | Push and prove CI | M | **DONE 2026-09-17.** Pushed to `github.com/verbalogicproject-creator/app-factory` (public; the private `appfactory` remote is kept as `old-private`; full history secret-scanned first). Run `35183976083` on `a2bed2a`: self-check, x86_64 and **ARM all green**; aapt2 parses the APK on both legs, 3 unit tests each, zipalign `-P 16` confirmed on x86 and skipped (no native zipalign) on ARM. It took four runs; the three it found were all real: oldest-first `build-tools` glob (`03ae658`), setup-android's removed `tools` package (`03ae658`), `yes \| sdkmanager` SIGPIPE under pipefail (`5d77f0a`), x86 aapt2 run on ARM and reported as an APK defect (`a2bed2a`). **Not yet exercised:** the generated-app template workflows (`ci.yml`, `release.yml`) on a real generated repo — the fixes were applied to them, not proven there. |
 | V3 | Play internal-track acceptance | M | **BLOCKED** on one human step: the first manual AAB upload in Play Console, plus inviting the service account. |
 
 ## Open — L: the updates log has itself drifted
