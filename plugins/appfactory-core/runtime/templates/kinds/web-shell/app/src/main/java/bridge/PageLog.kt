@@ -27,28 +27,35 @@ class PageLog(private val capacity: Int = DEFAULT_CAPACITY) {
         HTTP("http", true),
     }
 
+    /** [seq] is assigned by [add]; whatever a caller passes is overwritten. It is the
+     * cursor for `GET /__sag/diagnostics?since=N`, so a harness polling a long-lived page
+     * reads only what is new instead of re-reading -- and re-judging -- the whole buffer. */
     data class Entry(
         val kind: Kind,
         val message: String,
         val source: String? = null,
         val line: Int? = null,
+        val seq: Long = 0,
     )
 
     private val entries = ArrayDeque<Entry>()
+    private var nextSeq = 1L
 
     /** Oldest entries are dropped first: the first error is usually the cause, but an
      * unbounded buffer on a page that errors in a render loop is a memory leak. */
     @Synchronized
     fun add(entry: Entry) {
         while (entries.size >= capacity) entries.removeFirst()
-        entries.addLast(entry)
+        entries.addLast(entry.copy(seq = nextSeq++))
     }
 
+    /** Entries with seq > [since]. Sequence numbers keep rising across [clear] and
+     * eviction, so a cursor never matches a different entry than the one it was taken at. */
     @Synchronized
-    fun snapshot(): List<Entry> = entries.toList()
+    fun snapshot(since: Long = 0): List<Entry> = entries.filter { it.seq > since }
 
     @Synchronized
-    fun failures(): List<Entry> = entries.filter { it.kind.isFailure }
+    fun failures(since: Long = 0): List<Entry> = entries.filter { it.kind.isFailure && it.seq > since }
 
     @Synchronized
     fun clear() = entries.clear()

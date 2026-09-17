@@ -202,6 +202,20 @@ fun WebShellScreen(modifier: Modifier = Modifier) {
                     currentWebView = webView
                     NativeBridge.webView = webView
                 },
+                // A WebView is NOT garbage-collected into silence. Without destroy() the
+                // page keeps running after its screen is gone -- scripts, timers and a live
+                // AudioContext -- and the foreground service keeps the process alive, so
+                // every relaunch ADDED an engine. Observed on the phone 2026-09-17: three
+                // page instances reporting audio at once after one swipe-away, and no sound
+                // from the app or from any other app while they ran.
+                onRelease = { webView ->
+                    if (NativeBridge.webView === webView) NativeBridge.webView = null
+                    webView.stopLoading()
+                    // Blank first so page teardown (and AudioContext close) runs before destroy.
+                    webView.loadUrl("about:blank")
+                    webView.removeJavascriptInterface("AndroidBridge")
+                    webView.destroy()
+                },
             )
         }
     }

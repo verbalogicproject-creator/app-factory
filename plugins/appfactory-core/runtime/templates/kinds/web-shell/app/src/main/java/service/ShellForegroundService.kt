@@ -40,7 +40,10 @@ class ShellForegroundService : Service() {
         createNotificationChannel()
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))
-            .setContentText("Command server listening on 127.0.0.1:${BuildConfig.SAG_PORT}")
+            .setContentText(
+                if (BuildConfig.DEBUG) "Command server listening on 127.0.0.1:${BuildConfig.SAG_PORT}"
+                else "Running",
+            )
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setOngoing(true)
             .build()

@@ -81,4 +81,25 @@ class PageLogTest {
             PageLog.Kind.entries.map { it.wire },
         )
     }
+
+    @Test
+    fun sinceReturnsOnlyNewerEntries() {
+        val log = PageLog()
+        log.add(PageLog.Entry(PageLog.Kind.LOG, "old"))
+        val cursor = log.snapshot().last().seq
+        log.add(PageLog.Entry(PageLog.Kind.ERROR, "new"))
+        assertEquals(listOf("new"), log.snapshot(since = cursor).map { it.message })
+        assertEquals(listOf("new"), log.failures(since = cursor).map { it.message })
+    }
+
+    @Test
+    fun seqIsAssignedByAddAndSurvivesEvictionAndClear() {
+        // A cursor taken before eviction or clear() must never match a later entry.
+        val log = PageLog(capacity = 2)
+        (1..3).forEach { log.add(PageLog.Entry(PageLog.Kind.LOG, "m$it", seq = 999)) }
+        assertEquals(listOf(2L, 3L), log.snapshot().map { it.seq })
+        log.clear()
+        log.add(PageLog.Entry(PageLog.Kind.LOG, "after"))
+        assertEquals(4L, log.snapshot().single().seq)
+    }
 }

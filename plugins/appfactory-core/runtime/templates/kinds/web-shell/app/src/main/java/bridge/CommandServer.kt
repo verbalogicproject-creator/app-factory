@@ -27,6 +27,7 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import {{APPLICATION_ID}}.BuildConfig
+import {{APPLICATION_ID}}.CrashLog
 
 /**
  * The 127.0.0.1-only HTTP half of the command/observe channel.
@@ -44,10 +45,20 @@ import {{APPLICATION_ID}}.BuildConfig
  *   GET  /__sag/diagnostics  ?failures=true -> what the page reported: console messages,
  *                            failed resource loads, HTTP errors. A blank WebView is
  *                            otherwise indistinguishable from a working one from out here.
+ *   GET  /__sag/diagnostics?since=N -> only entries with seq > N; every entry carries its seq.
+ *   GET  /__sag/crash      {"present":bool,"path","modifiedMs","text"} -- the uncaught-exception
+ *                            report CrashLog wrote, normally from the PREVIOUS run. It lives in
+ *                            Android/data, which no other app (Termux included) can read on
+ *                            Android 11+, so this route is the only way to it without adb.
  *   GET  /__sag/dom        what the page actually RENDERED -- readyState, the mount
  *                            element's child count, the head of its innerHTML, the
  *                            computed body background. Needs nothing from the page, so it
  *                            works against a bundle that has never heard of this shell.
+ *
+ * DEBUG BUILDS ONLY. [start] returns without listening when BuildConfig.DEBUG is false.
+ * Loopback is shared by every app on the phone, so in a shipped build any installed app
+ * could POST /__sag/command to drive the page or read /__sag/dom. Preflight check
+ * 220-local-server-debug-only fails a project that starts a server without this gate.
  *
  * BINDS 127.0.0.1 ONLY, deliberately, never 0.0.0.0: this exists for a local
  * harness (adb forward, or a process on the same device) to drive the page, not
@@ -78,6 +89,7 @@ class CommandServer(
     private var engine: EmbeddedServer<*, *>? = null
 
     fun start() {
+        if (!BuildConfig.DEBUG) return
         if (engine != null) return
         engine = embeddedServer(CIO, host = "127.0.0.1", port = port) {
             routing {
@@ -127,13 +139,15 @@ class CommandServer(
                 }
                 get("/__sag/diagnostics") {
                     val onlyFailures = call.request.queryParameters["failures"] == "true"
+                    val since = call.request.queryParameters["since"]?.toLongOrNull() ?: 0L
                     val entries = NativeBridge.pageLog.let {
-                        if (onlyFailures) it.failures() else it.snapshot()
+                        if (onlyFailures) it.failures(since) else it.snapshot(since)
                     }
                     val body = buildJsonArray {
                         entries.forEach { e ->
                             add(
                                 buildJsonObject {
+                                    put("seq", e.seq)
                                     put("kind", e.kind.wire)
                                     put("message", e.message)
                                     put("source", e.source ?: "")
@@ -141,6 +155,16 @@ class CommandServer(
                                 },
                             )
                         }
+                    }
+                    call.respondText(body.toString(), ContentType.Application.Json)
+                }
+                get("/__sag/crash") {
+                    val file = CrashLog.path(appContext)
+                    val body = buildJsonObject {
+                        put("present", file?.isFile == true)
+                        put("path", file?.path ?: "")
+                        put("modifiedMs", if (file?.isFile == true) file.lastModified() else 0L)
+                        put("text", if (file?.isFile == true) file.readText().take(CRASH_TEXT_LIMIT) else "")
                     }
                     call.respondText(body.toString(), ContentType.Application.Json)
                 }
@@ -317,5 +341,7 @@ class CommandServer(
 
     private companion object {
         const val NO_ANSWER = "no page answered"
+        // A stack trace is a few kB; the cap only stops a runaway file becoming the response.
+        const val CRASH_TEXT_LIMIT = 64_000
     }
 }

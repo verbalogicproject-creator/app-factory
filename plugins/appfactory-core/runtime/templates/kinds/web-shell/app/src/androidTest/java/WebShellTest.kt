@@ -143,6 +143,20 @@ class WebShellTest {
         }
     }
 
+    @Test
+    fun crashReportIsServedOverHttp() {
+        // The crash file lives in Android/data, unreadable by any other app on Android 11+.
+        // This route is the only adb-free way to it, so its shape is pinned here.
+        ActivityScenario.launch(MainActivity::class.java).use {
+            val (status, body) = httpGetWithRetry(sag("/__sag/crash"))
+            assertEquals(200, status)
+            val crash = JSONObject(body)
+            listOf("present", "path", "modifiedMs", "text").forEach {
+                assertTrue("missing '$it' in $body", crash.has(it))
+            }
+        }
+    }
+
     private fun httpPost(url: String, body: String): Pair<Int, String> {
         val conn = URL(url).openConnection() as HttpURLConnection
         return try {
