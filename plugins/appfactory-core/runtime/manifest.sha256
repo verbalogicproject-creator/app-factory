@@ -6,7 +6,7 @@ cbc80aecac9355fa6b2780999e925446f0902afe6a6730c127d381d872cfb594  ./bin/scaffold
 f931e493d285a6fe4d54aa9074616e02dc425057dcdf10405c9da49664760bc0  ./bin/verify_mapping.py
 a904698546093b26fb1c3cf1aa0f66024b24f5c9592f792f93d9e2377b9b3719  ./bin/webdetect.py
 e8713c6ab2d529e83277c279844e4aa7ff8f39cab166b63622478cf1f8b48b79  ./data/web-frameworks.json
-16fd1eb36764d92454fdb14a78ca711bfeef6eb9cce7d09f9149e50a2f1cbf44  ./scripts/ci-arm-toolchain.sh
+bb63f1de3405e74269b021dae5f5e96540b2eaa3a1e7f41add011dadc22f242d  ./scripts/ci-arm-toolchain.sh
 600ff19982b72058a3677fe5d750112ac9e29155539d934c51f4be0cec20da7e  ./scripts/device-instrument.sh
 3f27861a2b28f284849a3069fc39bd7d3b87d7a44360f066e771e1c04e4ccfb1  ./scripts/emulator-verify.sh
 0d3dc48996b84135888c182e070f00fdc999237ec38fd97b605385ff252d869c  ./scripts/local-build.sh

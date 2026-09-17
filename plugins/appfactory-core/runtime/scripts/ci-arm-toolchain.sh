@@ -48,7 +48,12 @@ for pkg in "$PLATFORM" "$BUILD_TOOLS"; do
         ok "$pkg already installed"
     else
         printf 'installing %s...\n' "$pkg"
-        yes | "$SDKMANAGER" --sdk_root="$SDK" "$pkg" >/dev/null
+        # Not `yes | sdkmanager`: when sdkmanager exits, `yes` dies of SIGPIPE, and
+        # pipefail reports that as failure whatever sdkmanager returned (first ARM run,
+        # 2026-09-17). Feed it from a process substitution, which is not in the pipeline.
+        log="$(mktemp)"
+        "$SDKMANAGER" --sdk_root="$SDK" "$pkg" < <(yes) >"$log" 2>&1 \
+            || { tail -20 "$log" >&2; die "sdkmanager failed installing $pkg"; }
         [ -d "$SDK/$rel" ] || die "$pkg did not install to $SDK/$rel"
         ok "$pkg installed"
     fi
@@ -88,7 +93,10 @@ MACHINE="$(head -c 20 "$TMP/aapt2" | xxd -s 18 -l 2 -p)"
 [ "$MACHINE" = "b700" ] || die "extracted aapt2 has ELF machine $MACHINE, expected b700 (aarch64)"
 ok "aapt2 ELF machine is aarch64 ($MACHINE)"
 
-if ! printf '' | timeout 15 "$TMP/aapt2" daemon 2>/dev/null | grep -q 'Ready'; then
+# Captured, then matched: `aapt2 daemon | grep -q Ready` has grep exit on the first
+# match, SIGPIPE aapt2, and pipefail call a healthy binary broken.
+daemon_out="$(printf '' | timeout 15 "$TMP/aapt2" daemon 2>/dev/null || true)"
+if [[ "$daemon_out" != *Ready* ]]; then
     die "aapt2 did not print Ready in daemon mode -- AGP drives it in daemon mode, a version probe alone would miss this"
 fi
 ok "aapt2 daemon mode responds Ready"
