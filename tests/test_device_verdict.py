@@ -115,3 +115,102 @@ def test_stale_install_is_caught_by_bundle_hash_when_sha_is_local():
     assert not stale["ok"] and any("different bundle build" in x for x in stale["reasons"])
     fresh = dv.judge({**HEALTH, "sha": "local"}, dom, [], NO_CRASH, expect_scripts=["index-Cm8fn7Mn.js"])
     assert fresh["ok"]
+
+
+# ---------------------------------------------------------------------------
+# App-declared checks
+# ---------------------------------------------------------------------------
+def _obs(**kw):
+    base = {"observed_at": 1000, "context_time": 1.0, "level_db": None, "voice_detail": []}
+    return {**base, **kw}
+
+
+C4_ON = _obs(level_db=-27.0, signal_hz=257.8, voice_detail=[{"id": "0", "frequency_hz": 261.6, "amp": 0.24}])
+C4_OFF = _obs(level_db=-59.0, voice_detail=[{"id": "0", "frequency_hz": 261.6, "amp": 0}])
+
+
+def test_a_sounding_note_at_the_right_pitch_passes():
+    # Numbers from the phone, 2026-09-17: noteOn C4 -> signal_hz 257.8, amp 0.24.
+    assert dv.expectation_reasons({"status": "applied", "signal_hz": [261.6, 0.1], "voice_amp_above": 0.05},
+                                  {"status": "applied"}, [C4_ON]) == []
+
+
+def test_wrong_pitch_and_silence_fail_differently():
+    wrong = dv.expectation_reasons({"signal_hz": [261.6, 0.1]}, None, [_obs(signal_hz=392.0)])
+    assert "392 Hz" in wrong[0]
+    silent = dv.expectation_reasons({"signal_hz": [261.6, 0.1]}, None, [_obs()])
+    assert "no signal_hz" in silent[0]
+
+
+def test_a_stuck_voice_fails_and_a_released_one_passes():
+    stuck = _obs(voice_detail=[{"id": "0", "frequency_hz": 392.0, "amp": 0.32}])
+    assert "stuck note" in dv.expectation_reasons({"voices_silent": True}, None, [stuck])[0]
+    assert dv.expectation_reasons({"voices_silent": True}, None, [C4_OFF]) == []
+
+
+def test_applied_is_not_an_effect():
+    # The reply says applied, the observation says nothing started: that is a failure.
+    r = dv.expectation_reasons({"status": "applied", "voice_amp_above": 0.05}, {"status": "applied"}, [C4_OFF])
+    assert any("did not start" in x for x in r)
+
+
+def test_expectations_the_observation_cannot_answer_fail_rather_than_pass():
+    bare = {"observed_at": 1, "level_db": -20}
+    r = dv.expectation_reasons({"voices_silent": True, "clock_rate_min": 0.9}, None, [bare])
+    assert any("no voice_detail" in x for x in r)
+    assert any("cannot measure the audio clock" in x for x in r)
+    assert dv.expectation_reasons({"level_db_below": -40}, None, []) == ["no observation to judge (is /__sag/observe wired?)"]
+
+
+def test_clock_rate_detects_a_render_thread_falling_behind():
+    keeping_up = [_obs(observed_at=0, context_time=10.0), _obs(observed_at=2000, context_time=11.98)]
+    behind = [_obs(observed_at=0, context_time=10.0), _obs(observed_at=2000, context_time=11.0)]
+    assert dv.expectation_reasons({"clock_rate_min": 0.9}, None, keeping_up) == []
+    assert "0.50x" in dv.expectation_reasons({"clock_rate_min": 0.9}, None, behind)[0]
+
+
+def test_level_null_counts_as_silent():
+    assert dv.expectation_reasons({"level_db_below": -40}, None, [_obs(level_db=None)]) == []
+    assert dv.expectation_reasons({"level_db_below": -40}, None, [_obs(level_db=-25.0)])
+
+
+def test_run_checks_sequences_io_and_reports_each_step():
+    log = []
+    state = {"obs": [C4_ON]}
+
+    def post(cmd):
+        log.append(("post", cmd["type"]))
+        if cmd["type"] == "noteOff":
+            state["obs"] = [C4_OFF]
+        return {"status": "applied"}
+
+    steps = [
+        {"name": "on", "command": {"type": "noteOn", "note": "C4"}, "wait_ms": 10, "expect": {"voice_amp_above": 0.05}},
+        {"name": "hidden", "background": True, "wait_ms": 10, "expect": {"voices_silent": True}},
+        {"name": "back", "foreground": True, "command": {"type": "noteOff", "note": "C4"}, "wait_ms": 10,
+         "expect": {"voices_silent": True}},
+    ]
+    r = dv.run_checks(steps, post, lambda n: state["obs"], lambda: log.append("bg"), lambda: log.append("fg"),
+                      lambda s: None)
+    assert [s["ok"] for s in r["steps"]] == [True, False, True]
+    assert "stuck note" in r["steps"][1]["reasons"][0]
+    assert not r["ok"]
+    assert log == [("post", "noteOn"), "bg", ("post", "noteOff"), "fg"]
+
+
+def test_a_step_that_raises_fails_and_an_empty_check_list_is_not_a_pass():
+    def boom(cmd):
+        raise ConnectionRefusedError("server gone")
+    r = dv.run_checks([{"command": {"type": "noteOn"}, "expect": {}}], boom, lambda n: [], lambda: None, lambda: None,
+                      lambda s: None)
+    assert not r["ok"] and "ConnectionRefusedError" in r["steps"][0]["reasons"][0]
+    assert not dv.run_checks([], boom, lambda n: [], lambda: None, lambda: None, lambda s: None)["ok"]
+
+
+def test_checks_cli_keeps_its_subcommand_and_tool_flags_apart(tmp_path):
+    # --cmd once shared argparse's dest with the subcommand name and silently replaced it.
+    f = tmp_path / "c.json"; f.write_text('{"steps": []}')
+    proc = subprocess.run([sys.executable, str(RUNTIME_BIN / "device_verdict.py"), "checks", "--file", str(f),
+                           "--pkg", "x", "--cmd", "/nonexistent", "--base", "http://127.0.0.1:9"],
+                          capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 1 and json.loads(proc.stdout)["steps"] == []

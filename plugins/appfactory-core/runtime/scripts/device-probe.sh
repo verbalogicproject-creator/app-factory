@@ -3,6 +3,7 @@
 # device-probe -- prove a web-shell app works ON THIS PHONE, with no adb and no PC.
 #
 #   bash scripts/device-probe.sh [--pkg PKG] [--mount ID] [--no-launch] [--wait-install SECONDS]
+#                                [--checks FILE | --no-checks]
 #
 # WHY NO ADB. Termux, PRoot and every installed app share the phone's loopback. The
 # web-shell's debug build runs a command server on 127.0.0.1:$SAG_PORT, so a process
@@ -17,6 +18,10 @@
 #   bundle  the page loaded the SAME hashed scripts as the tree's index.html (stale install)
 #   crash   no uncaught exception since launch (/__sag/crash; Android/data is unreadable
 #           from Termux on Android 11+)
+#   checks  if .appfactory/device-checks.json exists: app-declared steps that send a command,
+#           optionally background the app, and judge the OBSERVED effect (/__sag/observe) --
+#           e.g. a note sounds at its pitch, releases to silence, is released when the app
+#           is backgrounded, and the audio clock keeps real time. These make SOUND.
 #
 # WHAT IT CANNOT CHECK: pixels (the user's eyes still confirm the screen), audio output,
 # and a release build -- the command server is debug-only by design (preflight 220).
@@ -28,13 +33,15 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 cd "$ROOT" || exit 2
 
-PKG=""; MOUNT="root"; LAUNCH=1; WAIT_INSTALL=0
+PKG=""; MOUNT="root"; LAUNCH=1; WAIT_INSTALL=0; CHECKS=".appfactory/device-checks.json"
 while [ $# -gt 0 ]; do
     case "$1" in
         --pkg) PKG="$2"; shift 2 ;;
         --mount) MOUNT="$2"; shift 2 ;;
         --no-launch) LAUNCH=0; shift ;;
         --wait-install) WAIT_INSTALL="$2"; shift 2 ;;
+        --checks) CHECKS="$2"; shift 2 ;;
+        --no-checks) CHECKS=""; shift ;;
         -h|--help) sed -n '3,6p' "$0"; exit 0 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
@@ -106,11 +113,22 @@ args=(judge --health "$T/health.json" --dom "$T/dom.json" --failures "$T/failure
 result="$(python3 "$VERDICT" "${args[@]}")"; rc=$?
 echo "$result"
 
+checks_result='null'
+if [ "$rc" -eq 0 ] && [ -n "$CHECKS" ] && [ -f "$CHECKS" ]; then
+    echo "running app checks from $CHECKS -- the app will make sound"
+    checks_result="$(python3 "$VERDICT" checks --file "$CHECKS" --pkg "$PKG" --base "$BASE" \
+        --am "${AM:-am}" --cmd "${CMD:-cmd}")"; crc=$?
+    echo "$checks_result"
+    [ "$crc" -eq 0 ] || rc=1
+elif [ -n "$CHECKS" ] && [ -f "$CHECKS" ]; then
+    echo "app checks skipped: the page itself failed"
+fi
+
 mkdir -p .appfactory/receipts
 receipt=".appfactory/receipts/$(date -u +%Y%m%dT%H%M%SZ)-device-probe.json"
-python3 - "$receipt" "$rc" "$PKG" "$T" "$result" <<'PY'
+python3 - "$receipt" "$rc" "$PKG" "$T" "$result" "$checks_result" <<'PY'
 import json, subprocess, sys
-path, rc, pkg, tmp, result = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5]
+path, rc, pkg, tmp, result, checks = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6]
 def load(n):
     try: return json.load(open(f"{tmp}/{n}"))
     except Exception: return None
@@ -119,6 +137,7 @@ def git(*a):
     except Exception: return ""
 json.dump({"kind": "device-probe", "pkg": pkg, "rc": rc, "tree": {"sha": git("rev-parse", "HEAD"),
            "dirty": bool(git("status", "--porcelain"))}, "verdict": json.loads(result),
+           "checks": json.loads(checks),
            "health": load("health.json"), "dom": load("dom.json")}, open(path, "w"), indent=1)
 PY
 echo "receipt: $receipt"
